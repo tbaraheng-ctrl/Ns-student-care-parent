@@ -276,7 +276,16 @@
                 
                 <!-- VIEW: DASHBOARD (STATISTICS) -->
                 <div id="view-dashboard" class="app-section space-y-4">
-                    <h2 class="text-lg font-bold text-gray-800 border-l-4 border-ns-orange pl-2">สถิติและพฤติกรรม</h2>
+                    <div class="flex justify-between items-center border-l-4 border-ns-orange pl-2">
+                        <h2 class="text-lg font-bold text-gray-800">สถิติและพฤติกรรม</h2>
+                        <div class="flex items-center gap-2 text-[10px] sm:text-xs text-gray-500 bg-white px-2 py-1 rounded-lg border shadow-sm">
+                            <span class="relative flex h-2 w-2">
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                            </span>
+                            <span id="dash-sync-time">กำลังเชื่อมต่อ...</span>
+                        </div>
+                    </div>
                     
                     <div class="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3">
                         <div onclick="openDetailModal('scan')" class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 active:scale-95 transition cursor-pointer relative overflow-hidden">
@@ -620,7 +629,8 @@
         let currentUser = null; 
         let currentRegStep = 1;
         let mockClubs = [];
-        let clubInterval = null; 
+        let dashInterval = null; // ตัวแปรเก็บเวลา Refresh หน้าสถิติ
+        let clubInterval = null; // ตัวแปรเก็บเวลา Refresh หน้าชุมนุม
         let systemSettings = null; 
         let studentCurrentClub = null; 
 
@@ -862,118 +872,171 @@
             document.querySelectorAll('.app-section').forEach(sec => sec.classList.add('hidden-view'));
             document.getElementById('view-' + target).classList.remove('hidden-view');
 
-            if (target === 'club') {
-                loadClubs(false); 
-                if (clubInterval) clearInterval(clubInterval);
-                clubInterval = setInterval(() => loadClubs(true), 5000); 
-            } else {
-                if (clubInterval) {
-                    clearInterval(clubInterval); 
-                }
+            // เคลียร์การโหลดเบื้องหลังเก่าทิ้งเสมอ ป้องกันเว็บทำงานหนักเกินไป
+            if (dashInterval) clearInterval(dashInterval);
+            if (clubInterval) clearInterval(clubInterval);
+
+            if (target === 'dashboard') {
+                loadStats();
+                dashInterval = setInterval(fetchStatsSilent, 5000); // ตั้งเวลาอัปเดตสถิติทุก 5 วิ
+            } else if (target === 'club') {
+                loadClubs(); 
+                clubInterval = setInterval(fetchClubsSilent, 5000); // ตั้งเวลาอัปเดตชุมนุมทุก 5 วิ
             }
         }
 
         async function loadStats() {
             if (!currentUser) return; 
-            const res = await fetchGAS('getStats', { id: currentUser.data.id });
-            if (!currentUser) return; 
-
-            if(res.status === 'success') {
-                systemSettings = res.data.settings;
-
-                if (currentUser.role === 'admin') {
-                    if (systemSettings) {
-                        if(systemSettings.schoolName) document.getElementById('setting-school-name').value = systemSettings.schoolName;
-                        if(systemSettings.lineLink) document.getElementById('setting-line-link').value = systemSettings.lineLink;
-                        if(systemSettings.startDate) document.getElementById('setting-club-start').value = systemSettings.startDate;
-                        if(systemSettings.endDate) document.getElementById('setting-club-end').value = systemSettings.endDate;
-                        document.getElementById('setting-allow-change-club').checked = (systemSettings.allowChangeClub === "อนุญาต");
-                        
-                        if(systemSettings.permissions) {
-                            if(systemSettings.permissions.stat) {
-                                document.getElementById('perm-stat-student').checked = systemSettings.permissions.stat.student;
-                                document.getElementById('perm-stat-parent').checked = systemSettings.permissions.stat.parent;
-                            }
-                            if(systemSettings.permissions.leave) {
-                                document.getElementById('perm-leave-student').checked = systemSettings.permissions.leave.student;
-                                document.getElementById('perm-leave-parent').checked = systemSettings.permissions.leave.parent;
-                            }
-                            if(systemSettings.permissions.club) {
-                                document.getElementById('perm-club-student').checked = systemSettings.permissions.club.student;
-                                document.getElementById('perm-club-parent').checked = systemSettings.permissions.club.parent;
-                            }
-                        }
-                    }
-                    return; 
-                }
-
-                document.getElementById('stat-scan').innerText = res.data.scanTotal;
-                document.getElementById('stat-scan-in').innerText = res.data.scanIn;
-                document.getElementById('stat-scan-out').innerText = res.data.scanOut;
-                document.getElementById('stat-late-school').innerText = res.data.lateSchool;
-                document.getElementById('stat-missed-class').innerText = res.data.missedClass;
-                document.getElementById('stat-late-class').innerText = res.data.lateClass;
-                document.getElementById('stat-skipped-class').innerText = res.data.skippedClass;
-                document.getElementById('stat-leave').innerText = res.data.leaveTotal;
-                document.getElementById('stat-leave-sick').innerText = res.data.leaveSick;
-                document.getElementById('stat-leave-personal').innerText = res.data.leavePersonal;
+            
+            // 1. ดึงข้อมูลจากหน่วยความจำแคชของเครื่องมาแสดงผล "ทันที" (กดปุ๊บมาปั๊บ)
+            const cacheKey = 'ns_stats_' + currentUser.data.id;
+            const cachedData = sessionStorage.getItem(cacheKey);
+            
+            if (cachedData) {
+                const parsedData = JSON.parse(cachedData);
+                systemSettings = parsedData.settings;
+                updateStatsUI(parsedData);
+                document.getElementById('dash-sync-time').innerText = "ข้อมูลล่าสุด (Cache)";
                 
-                let safeBhPlus = Math.abs(Number(res.data.bhPlus) || 0);
-                let safeBhMinus = Math.abs(Number(res.data.bhMinus) || 0);
-                let correctBhTotal = 100 + safeBhPlus - safeBhMinus;
-
-                document.getElementById('stat-behavior').innerText = correctBhTotal;
-                document.getElementById('stat-bh-plus').innerText = safeBhPlus;
-                document.getElementById('stat-bh-minus').innerText = safeBhMinus;
-
-                studentCurrentClub = res.data.currentClub;
-                const clubContainer = document.getElementById('my-club-container');
-                const btnChange = document.getElementById('btn-change-club');
-                
-                if (studentCurrentClub) {
-                    clubContainer.classList.remove('hidden-view');
-                    document.getElementById('my-club-name').innerText = studentCurrentClub.name || '-';
-                    document.getElementById('my-club-id').innerText = studentCurrentClub.id || '-';
-                    
-                    let teachers = '-';
-                    if (studentCurrentClub.teacher && studentCurrentClub.teacher !== '-') {
-                        teachers = studentCurrentClub.teacher.split(',').map(t => {
-                            let name = t.replace(/^(นาย|นางสาว|นาง|ว่าที่ร\.ต\.|ว่าที่ร้อยตรี|ครู)/, '').trim();
-                            return 'ครู' + name;
-                        }).join(', ');
-                    }
-                    document.getElementById('my-club-teacher').innerText = teachers;
-
-                    let regDateStr = 'ไม่ระบุ';
-                    if (studentCurrentClub.regDate) {
-                        const d = new Date(studentCurrentClub.regDate);
-                        if (!isNaN(d.getTime())) {
-                            let y = d.getFullYear();
-                            if (y < 2500) y += 543; 
-                            let dd = d.getDate() < 10 ? '0'+d.getDate() : d.getDate();
-                            let mm = (d.getMonth() + 1) < 10 ? '0'+(d.getMonth()+1) : d.getMonth()+1;
-                            regDateStr = `${dd}/${mm}/${y}`;
-                        } else {
-                            regDateStr = String(studentCurrentClub.regDate);
-                        }
-                    }
-                    document.getElementById('my-club-date').innerText = regDateStr;
-
-                    document.getElementById('my-club-objective').innerText = studentCurrentClub.objective || '-';
-                    document.getElementById('my-club-location').innerText = studentCurrentClub.location || '-';
-                    document.getElementById('my-club-equipment').innerText = studentCurrentClub.equipment || '-';
-
-                } else {
-                    clubContainer.classList.add('hidden-view');
+                // สั่งให้ไปดึงข้อมูลใหม่หลังบ้านมาอัปเดตทับแบบไม่ให้ผู้ใช้รู้ตัว
+                fetchStatsSilent();
+            } else {
+                // หากเป็นการเข้าระบบครั้งแรก (ไม่มีแคช) ถึงจะโชว์รูปโหลดหมุนๆ
+                if(currentUser.role !== 'admin') {
+                    document.getElementById('stat-scan').innerHTML = '<i class="fas fa-spinner fa-spin text-gray-300"></i>';
                 }
+                
+                const res = await fetchGAS('getStats', { id: currentUser.data.id });
+                if (!currentUser) return; 
 
-                const allowChange = (!systemSettings || systemSettings.allowChangeClub !== "ไม่อนุญาต");
-                if (allowChange && studentCurrentClub && (currentUser.role === 'student' || currentUser.role === 'parent')) {
-                    btnChange.classList.remove('hidden-view');
-                } else {
-                    btnChange.classList.add('hidden-view');
+                if(res.status === 'success') {
+                    sessionStorage.setItem(cacheKey, JSON.stringify(res.data)); // เซฟลงแคช
+                    systemSettings = res.data.settings;
+                    updateStatsUI(res.data);
+                    updateSyncTime('dash-sync-time');
                 }
             }
+        }
+
+        // ฟังก์ชันพระเอก: ดึงข้อมูลเบื้องหลังแบบเงียบๆ ไม่โชว์หน้าจอโหลด ไม่กระตุก
+        async function fetchStatsSilent() {
+            if (!currentUser || currentUser.role === 'admin') return; 
+            try {
+                const res = await fetchGAS('getStats', { id: currentUser.data.id });
+                if(res.status === 'success' && currentUser) {
+                    const cacheKey = 'ns_stats_' + currentUser.data.id;
+                    sessionStorage.setItem(cacheKey, JSON.stringify(res.data));
+                    systemSettings = res.data.settings;
+                    updateStatsUI(res.data);
+                    updateSyncTime('dash-sync-time');
+                }
+            } catch (e) {
+                console.log("Background fetch error (stats):", e);
+            }
+        }
+
+        // แยกฟังก์ชันจัดการ DOM ออกมา เพื่อให้เรียกใช้ซ้ำได้ง่าย
+        function updateStatsUI(data) {
+            if (currentUser.role === 'admin') {
+                if (data.settings) {
+                    if(data.settings.schoolName) document.getElementById('setting-school-name').value = data.settings.schoolName;
+                    if(data.settings.lineLink) document.getElementById('setting-line-link').value = data.settings.lineLink;
+                    if(data.settings.startDate) document.getElementById('setting-club-start').value = data.settings.startDate;
+                    if(data.settings.endDate) document.getElementById('setting-club-end').value = data.settings.endDate;
+                    document.getElementById('setting-allow-change-club').checked = (data.settings.allowChangeClub === "อนุญาต");
+                    
+                    if(data.settings.permissions) {
+                        if(data.settings.permissions.stat) {
+                            document.getElementById('perm-stat-student').checked = data.settings.permissions.stat.student;
+                            document.getElementById('perm-stat-parent').checked = data.settings.permissions.stat.parent;
+                        }
+                        if(data.settings.permissions.leave) {
+                            document.getElementById('perm-leave-student').checked = data.settings.permissions.leave.student;
+                            document.getElementById('perm-leave-parent').checked = data.settings.permissions.leave.parent;
+                        }
+                        if(data.settings.permissions.club) {
+                            document.getElementById('perm-club-student').checked = data.settings.permissions.club.student;
+                            document.getElementById('perm-club-parent').checked = data.settings.permissions.club.parent;
+                        }
+                    }
+                }
+                return; 
+            }
+
+            document.getElementById('stat-scan').innerText = data.scanTotal;
+            document.getElementById('stat-scan-in').innerText = data.scanIn;
+            document.getElementById('stat-scan-out').innerText = data.scanOut;
+            document.getElementById('stat-late-school').innerText = data.lateSchool;
+            document.getElementById('stat-missed-class').innerText = data.missedClass;
+            document.getElementById('stat-late-class').innerText = data.lateClass;
+            document.getElementById('stat-skipped-class').innerText = data.skippedClass;
+            document.getElementById('stat-leave').innerText = data.leaveTotal;
+            document.getElementById('stat-leave-sick').innerText = data.leaveSick;
+            document.getElementById('stat-leave-personal').innerText = data.leavePersonal;
+            
+            let safeBhPlus = Math.abs(Number(data.bhPlus) || 0);
+            let safeBhMinus = Math.abs(Number(data.bhMinus) || 0);
+            let correctBhTotal = 100 + safeBhPlus - safeBhMinus;
+
+            document.getElementById('stat-behavior').innerText = correctBhTotal;
+            document.getElementById('stat-bh-plus').innerText = safeBhPlus;
+            document.getElementById('stat-bh-minus').innerText = safeBhMinus;
+
+            studentCurrentClub = data.currentClub;
+            const clubContainer = document.getElementById('my-club-container');
+            const btnChange = document.getElementById('btn-change-club');
+            
+            if (studentCurrentClub) {
+                clubContainer.classList.remove('hidden-view');
+                document.getElementById('my-club-name').innerText = studentCurrentClub.name || '-';
+                document.getElementById('my-club-id').innerText = studentCurrentClub.id || '-';
+                
+                let teachers = '-';
+                if (studentCurrentClub.teacher && studentCurrentClub.teacher !== '-') {
+                    teachers = studentCurrentClub.teacher.split(',').map(t => {
+                        let name = t.replace(/^(นาย|นางสาว|นาง|ว่าที่ร\.ต\.|ว่าที่ร้อยตรี|ครู)/, '').trim();
+                        return 'ครู' + name;
+                    }).join(', ');
+                }
+                document.getElementById('my-club-teacher').innerText = teachers;
+
+                let regDateStr = 'ไม่ระบุ';
+                if (studentCurrentClub.regDate) {
+                    const d = new Date(studentCurrentClub.regDate);
+                    if (!isNaN(d.getTime())) {
+                        let y = d.getFullYear();
+                        if (y < 2500) y += 543; 
+                        let dd = d.getDate() < 10 ? '0'+d.getDate() : d.getDate();
+                        let mm = (d.getMonth() + 1) < 10 ? '0'+(d.getMonth()+1) : d.getMonth()+1;
+                        regDateStr = `${dd}/${mm}/${y}`;
+                    } else {
+                        regDateStr = String(studentCurrentClub.regDate);
+                    }
+                }
+                document.getElementById('my-club-date').innerText = regDateStr;
+
+                document.getElementById('my-club-objective').innerText = studentCurrentClub.objective || '-';
+                document.getElementById('my-club-location').innerText = studentCurrentClub.location || '-';
+                document.getElementById('my-club-equipment').innerText = studentCurrentClub.equipment || '-';
+
+            } else {
+                clubContainer.classList.add('hidden-view');
+            }
+
+            const allowChange = (!systemSettings || systemSettings.allowChangeClub !== "ไม่อนุญาต");
+            if (allowChange && studentCurrentClub && (currentUser.role === 'student' || currentUser.role === 'parent')) {
+                btnChange.classList.remove('hidden-view');
+            } else {
+                btnChange.classList.add('hidden-view');
+            }
+        }
+
+        // ฟังก์ชันช่วยอัปเดตเวลาล่าสุด (Format สวยงาม)
+        function updateSyncTime(elementId) {
+            const now = new Date();
+            const timeStr = `${now.getHours() < 10 ? '0':''}${now.getHours()}:${now.getMinutes() < 10 ? '0':''}${now.getMinutes()}:${now.getSeconds() < 10 ? '0':''}${now.getSeconds()}`;
+            const el = document.getElementById(elementId);
+            if(el) el.innerText = timeStr;
         }
 
         async function openDetailModal(type) {
@@ -1154,7 +1217,7 @@
         }
 
         // --- Club Logic ---
-        async function loadClubs(silent = false) {
+        async function loadClubs() {
             const tableBody = document.getElementById('club-list-body');
             const syncIcon = document.getElementById('club-sync-status');
             
@@ -1177,83 +1240,113 @@
                 }
             }
 
-            if (!silent && tableBody.innerHTML.trim() === '') {
-                tableBody.innerHTML = '<div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center text-gray-500 w-full"><i class="fas fa-circle-notch fa-spin text-3xl mb-3 text-ns-blue"></i><p>กำลังโหลดข้อมูลชุมนุม...</p></div>';
-            }
-
-            syncIcon.classList.add('text-ns-blue');
-            syncIcon.innerHTML = '<i class="fas fa-sync fa-spin mr-1"></i> กำลังอัปเดต...';
-
-            const res = await fetchGAS('getClubs', {});
+            // 1. ดึง Cache ชุมนุมมาแสดงทันทีก่อน
+            const cacheKey = 'ns_club_list_data';
+            const cachedData = sessionStorage.getItem(cacheKey);
             
-            if (!currentUser) return; 
+            if (cachedData) {
+                renderClubsUI(JSON.parse(cachedData), syncIcon, true);
+                fetchClubsSilent(); // ดึงใหม่เบื้องหลัง
+            } else {
+                tableBody.innerHTML = '<div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center text-gray-500 w-full"><i class="fas fa-circle-notch fa-spin text-3xl mb-3 text-ns-blue"></i><p>กำลังโหลดข้อมูลชุมนุม...</p></div>';
+                
+                const res = await fetchGAS('getClubs', {});
+                if (!currentUser) return; 
 
-            if(res.status === 'success') {
-                mockClubs = res.data;
-                let html = '';
-                res.data.forEach(c => {
-                    const remains = c.max - c.reg;
-                    const isFull = remains <= 0;
-                    
-                    const teachers = c.teacher.split(',').map(t => {
-                        let name = t.trim();
-                        name = name.replace(/^(นาย|นางสาว|นาง|ว่าที่ร\.ต\.|ว่าที่ร้อยตรี|ครู)/, '').trim();
-                        return 'ครู' + name;
-                    }).join(', ');
+                if(res.status === 'success') {
+                    sessionStorage.setItem(cacheKey, JSON.stringify(res.data));
+                    renderClubsUI(res.data, syncIcon, false);
+                }
+            }
+        }
 
-                    const percent = c.max > 0 ? Math.min(100, Math.round((c.reg / c.max) * 100)) : 0;
+        // ดึงข้อมูลชุมนุมแบบเงียบๆ อัปเดตยอดโควต้าโดยไม่กระตุก
+        async function fetchClubsSilent() {
+            if (!currentUser) return;
+            const syncIcon = document.getElementById('club-sync-status');
+            
+            try {
+                const res = await fetchGAS('getClubs', {});
+                if(res.status === 'success' && currentUser) {
+                    const cacheKey = 'ns_club_list_data';
+                    sessionStorage.setItem(cacheKey, JSON.stringify(res.data));
+                    renderClubsUI(res.data, syncIcon, false);
+                }
+            } catch (e) {
+                console.log("Background fetch error (clubs):", e);
+            }
+        }
 
-                    html += `
-                    <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-all hover:shadow-md hover:border-purple-300">
-                        <div class="flex-1 w-full">
-                            <div class="flex items-center gap-3 mb-2">
-                                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-purple-100 to-ns-light text-purple-600 flex items-center justify-center text-xl shadow-inner border border-purple-50 shrink-0">
-                                    <i class="fas fa-users"></i>
-                                </div>
-                                <div>
-                                    <h3 class="font-bold text-gray-800 text-base leading-tight">${c.name}</h3>
-                                    <p class="text-xs text-gray-500 mt-1"><i class="fas fa-id-badge mr-1 text-gray-400"></i>${c.id} | <i class="fas fa-chalkboard-teacher mr-1 text-gray-400"></i>${teachers}</p>
-                                </div>
+        function renderClubsUI(data, syncIcon, isCached) {
+            mockClubs = data;
+            const tableBody = document.getElementById('club-list-body');
+            let html = '';
+            data.forEach(c => {
+                const remains = c.max - c.reg;
+                const isFull = remains <= 0;
+                
+                const teachers = c.teacher.split(',').map(t => {
+                    let name = t.trim();
+                    name = name.replace(/^(นาย|นางสาว|นาง|ว่าที่ร\.ต\.|ว่าที่ร้อยตรี|ครู)/, '').trim();
+                    return 'ครู' + name;
+                }).join(', ');
+
+                const percent = c.max > 0 ? Math.min(100, Math.round((c.reg / c.max) * 100)) : 0;
+
+                html += `
+                <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-all hover:shadow-md hover:border-purple-300">
+                    <div class="flex-1 w-full">
+                        <div class="flex items-center gap-3 mb-2">
+                            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-purple-100 to-ns-light text-purple-600 flex items-center justify-center text-xl shadow-inner border border-purple-50 shrink-0">
+                                <i class="fas fa-users"></i>
                             </div>
-                            
-                            <div class="mt-3 text-[11px] text-gray-600 bg-purple-50/30 p-3 rounded-xl border border-purple-100 space-y-1.5">
-                                <p class="flex items-start"><span class="text-purple-600 w-5 shrink-0"><i class="fas fa-bullseye"></i></span> <span><strong class="font-semibold text-gray-700">เป้าหมาย:</strong> ${c.objective}</span></p>
-                                <p class="flex items-start"><span class="text-ns-orange w-5 shrink-0"><i class="fas fa-map-marker-alt"></i></span> <span><strong class="font-semibold text-gray-700">สถานที่:</strong> ${c.location}</span></p>
-                                <p class="flex items-start"><span class="text-teal-600 w-5 shrink-0"><i class="fas fa-toolbox"></i></span> <span><strong class="font-semibold text-gray-700">อุปกรณ์:</strong> ${c.equipment}</span></p>
-                            </div>
-                            
-                            <div class="mt-3 grid grid-cols-3 gap-2 text-center bg-gray-50 rounded-xl p-2.5 border border-gray-100 shadow-inner">
-                                <div>
-                                    <p class="text-[10px] text-gray-500 font-medium mb-0.5">จำนวนรับทั้งหมด</p>
-                                    <p class="font-bold text-gray-700 text-sm">${c.max}</p>
-                                </div>
-                                <div class="border-l border-r border-gray-200">
-                                    <p class="text-[10px] text-gray-500 font-medium mb-0.5">ลงทะเบียนแล้ว</p>
-                                    <p class="font-bold text-ns-blue text-sm">${c.reg}</p>
-                                </div>
-                                <div>
-                                    <p class="text-[10px] text-gray-500 font-medium mb-0.5">จำนวนคงเหลือ</p>
-                                    <p class="font-bold ${isFull ? 'text-red-500' : 'text-green-500'} text-sm">${remains}</p>
-                                </div>
-                            </div>
-                            
-                            <div class="w-full bg-gray-200 rounded-full h-1.5 mt-3 overflow-hidden">
-                                <div class="bg-gradient-to-r ${isFull ? 'from-red-400 to-red-600' : 'from-purple-400 to-ns-blue'} h-1.5 rounded-full transition-all duration-500" style="width: ${percent}%"></div>
+                            <div>
+                                <h3 class="font-bold text-gray-800 text-base leading-tight">${c.name}</h3>
+                                <p class="text-xs text-gray-500 mt-1"><i class="fas fa-id-badge mr-1 text-gray-400"></i>${c.id} | <i class="fas fa-chalkboard-teacher mr-1 text-gray-400"></i>${teachers}</p>
                             </div>
                         </div>
                         
-                        <div class="w-full sm:w-auto flex flex-col items-center justify-center pt-3 sm:pt-0 border-t sm:border-t-0 sm:border-l border-gray-100 sm:pl-5 mt-2 sm:mt-0">
-                            ${isFull 
-                                ? `<button disabled class="w-full sm:w-auto bg-red-50 text-red-500 px-5 py-3 rounded-xl text-sm font-bold border border-red-100 flex items-center justify-center gap-2 cursor-not-allowed"><i class="fas fa-ban"></i> เต็มแล้ว</button>`
-                                : `<button onclick="promptClubReg('${c.id}')" class="w-full sm:w-auto bg-gradient-to-r from-ns-blue to-purple-600 hover:from-blue-800 hover:to-purple-800 text-white px-5 py-3 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95"><i class="fas fa-check-circle"></i> สมัครเลือกชุมนุม</button>`
-                            }
+                        <div class="mt-3 text-[11px] text-gray-600 bg-purple-50/30 p-3 rounded-xl border border-purple-100 space-y-1.5">
+                            <p class="flex items-start"><span class="text-purple-600 w-5 shrink-0"><i class="fas fa-bullseye"></i></span> <span><strong class="font-semibold text-gray-700">เป้าหมาย:</strong> ${c.objective}</span></p>
+                            <p class="flex items-start"><span class="text-ns-orange w-5 shrink-0"><i class="fas fa-map-marker-alt"></i></span> <span><strong class="font-semibold text-gray-700">สถานที่:</strong> ${c.location}</span></p>
+                            <p class="flex items-start"><span class="text-teal-600 w-5 shrink-0"><i class="fas fa-toolbox"></i></span> <span><strong class="font-semibold text-gray-700">อุปกรณ์:</strong> ${c.equipment}</span></p>
                         </div>
-                    </div>`;
-                });
-                tableBody.innerHTML = html;
-                
+                        
+                        <div class="mt-3 grid grid-cols-3 gap-2 text-center bg-gray-50 rounded-xl p-2.5 border border-gray-100 shadow-inner">
+                            <div>
+                                <p class="text-[10px] text-gray-500 font-medium mb-0.5">จำนวนรับทั้งหมด</p>
+                                <p class="font-bold text-gray-700 text-sm">${c.max}</p>
+                            </div>
+                            <div class="border-l border-r border-gray-200">
+                                <p class="text-[10px] text-gray-500 font-medium mb-0.5">ลงทะเบียนแล้ว</p>
+                                <p class="font-bold text-ns-blue text-sm">${c.reg}</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-gray-500 font-medium mb-0.5">จำนวนคงเหลือ</p>
+                                <p class="font-bold ${isFull ? 'text-red-500' : 'text-green-500'} text-sm">${remains}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="w-full bg-gray-200 rounded-full h-1.5 mt-3 overflow-hidden">
+                            <div class="bg-gradient-to-r ${isFull ? 'from-red-400 to-red-600' : 'from-purple-400 to-ns-blue'} h-1.5 rounded-full transition-all duration-500" style="width: ${percent}%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="w-full sm:w-auto flex flex-col items-center justify-center pt-3 sm:pt-0 border-t sm:border-t-0 sm:border-l border-gray-100 sm:pl-5 mt-2 sm:mt-0">
+                        ${isFull 
+                            ? `<button disabled class="w-full sm:w-auto bg-red-50 text-red-500 px-5 py-3 rounded-xl text-sm font-bold border border-red-100 flex items-center justify-center gap-2 cursor-not-allowed"><i class="fas fa-ban"></i> เต็มแล้ว</button>`
+                            : `<button onclick="promptClubReg('${c.id}')" class="w-full sm:w-auto bg-gradient-to-r from-ns-blue to-purple-600 hover:from-blue-800 hover:to-purple-800 text-white px-5 py-3 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95"><i class="fas fa-check-circle"></i> สมัครเลือกชุมนุม</button>`
+                        }
+                    </div>
+                </div>`;
+            });
+            tableBody.innerHTML = html;
+            
+            if (isCached) {
+                syncIcon.innerHTML = `<i class="fas fa-bolt mr-1 text-ns-orange"></i> ข้อมูลล่าสุด (Cache)`;
+            } else {
                 const now = new Date();
-                const timeString = `${now.getHours()}:${now.getMinutes() < 10 ? '0' : ''}${now.getMinutes()}:${now.getSeconds() < 10 ? '0' : ''}${now.getSeconds()}`;
+                const timeString = `${now.getHours() < 10 ? '0' : ''}${now.getHours()}:${now.getMinutes() < 10 ? '0' : ''}${now.getMinutes()}:${now.getSeconds() < 10 ? '0' : ''}${now.getSeconds()}`;
                 syncIcon.classList.remove('text-ns-blue');
                 syncIcon.innerHTML = `<i class="fas fa-check-circle mr-1 text-green-500"></i> อัปเดตล่าสุด ${timeString}`;
             }
