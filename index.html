@@ -1008,6 +1008,50 @@
         }
 
         let currentLineLinkToOpen = "";
+
+        // เพิ่มฟังก์ชันสำหรับเปิดหน้าต่างป๊อปอัพเพิ่มเพื่อน
+        function addSchoolLineFriend() {
+            currentLineLinkToOpen = (systemSettings && systemSettings.lineLink) ? systemSettings.lineLink : "https://line.me/R/ti/p/@your_line_id";
+            if(currentLineLinkToOpen && currentLineLinkToOpen !== "") {
+                document.getElementById('line-add-modal').classList.remove('hidden-view');
+            } else {
+                showAlert('แจ้งเตือน', 'แอดมินยังไม่ได้ตั้งค่าลิงก์สำหรับเพิ่มเพื่อนในระบบ', 'info');
+            }
+        }
+
+        function closeLineAddModal() {
+            document.getElementById('line-add-modal').classList.add('hidden-view');
+        }
+
+        // เปิดแอป LINE และปลดล็อกปุ่มเชื่อมต่อ
+        function openLineAppAndCloseModal() {
+            if (liff.isInClient()) {
+                liff.openWindow({ url: currentLineLinkToOpen, external: false });
+            } else {
+                window.location.href = currentLineLinkToOpen; 
+            }
+            
+            // ตั้งค่าสถานะว่ากดเพิ่มเพื่อนแล้ว และเปิดให้ปุ่มที่ 2 ทำงานได้
+            hasClickedAddFriend = true;
+            updateConnectButtonState();
+            
+            setTimeout(() => {
+                closeLineAddModal();
+            }, 1000);
+        }
+
+        // เพิ่มฟังก์ชันสำหรับตรวจสอบและเปลี่ยนสถานะของปุ่มเชื่อมต่อ
+        function updateConnectButtonState() {
+            const btnConnect = document.getElementById('btn-connect-line');
+            if (hasClickedAddFriend) {
+                btnConnect.disabled = false;
+                btnConnect.className = "bg-[#00B900] text-white px-6 py-4 rounded-xl font-bold shadow-md hover:bg-green-600 w-full flex items-center justify-center gap-2 active:scale-95 transition-all";
+            } else {
+                btnConnect.disabled = true;
+                btnConnect.className = "bg-gray-300 text-gray-500 cursor-not-allowed px-6 py-4 rounded-xl font-bold shadow-sm w-full flex items-center justify-center gap-2 transition-all";
+            }
+        }
+
         function showLoading() { document.getElementById('loading-overlay').classList.remove('hidden-view'); }
         function hideLoading() { 
             document.getElementById('loading-overlay').classList.add('hidden-view'); 
@@ -1563,6 +1607,9 @@
                 const p1 = document.getElementById('reg-pass1').value;
                 const p2 = document.getElementById('reg-pass2').value;
                 if(p1.length < 4 || p1 !== p2) return showAlert('รหัสผ่านไม่ถูกต้อง', 'รหัสผ่านต้องตรงกันและไม่ว่างเปล่า', 'error');
+                
+                // อัปเดตสถานะปุ่มเผื่อผู้ใช้กดย้อนกลับแล้วกลับมาหน้าเดิม
+                updateConnectButtonState();
             }
 
             document.getElementById(`reg-step-${currentRegStep}`).classList.add('hidden-view');
