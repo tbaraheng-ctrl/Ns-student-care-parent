@@ -746,6 +746,19 @@
         </div>
     </div>
 
+    <!-- Modal: เพิ่มเพื่อน LINE -->
+    <div id="line-add-modal" class="fixed inset-0 bg-black/60 z-[70] hidden-view flex justify-center items-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-sm p-6 transform transition-all shadow-xl text-center">
+            <div class="w-16 h-16 bg-green-100 text-[#00B900] rounded-full flex items-center justify-center text-3xl mx-auto mb-4"><i class="fas fa-user-plus"></i></div>
+            <h3 class="text-xl font-bold mb-2 text-gray-800">เพิ่มเพื่อนโรงเรียน</h3>
+            <p class="text-sm text-gray-600 mb-6">ระบบจะเปิดแอปพลิเคชัน LINE เพื่อให้คุณกดเพิ่มเพื่อน</p>
+            <div class="flex gap-3">
+                <button onclick="closeLineAddModal()" class="w-1/2 bg-gray-200 text-gray-700 py-3 rounded-xl font-medium">ยกเลิก</button>
+                <button onclick="openLineAppAndCloseModal()" class="w-1/2 bg-[#00B900] text-white py-3 rounded-xl font-medium shadow-md">เปิดแอป LINE</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal: QR Code บัตรประจำตัว -->
     <div id="qr-modal" class="fixed inset-0 bg-black/70 z-[80] hidden-view flex justify-center items-center p-4 backdrop-blur-sm transition-opacity" onclick="closeQrModal()">
         <div class="bg-white rounded-3xl w-full max-w-xs p-8 text-center transform transition-all shadow-2xl relative" onclick="event.stopPropagation()">
