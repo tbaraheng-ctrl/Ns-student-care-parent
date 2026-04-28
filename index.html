@@ -767,6 +767,28 @@
         </div>
     </div>
 
+    <!-- Modal: ป๊อปอัพเพิ่มเพื่อน LINE (เพิ่มใหม่) -->
+    <div id="line-add-modal" class="fixed inset-0 bg-black/60 z-[90] hidden-view flex justify-center items-center p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-3xl w-full max-w-sm p-6 text-center transform transition-all shadow-2xl relative">
+            <button onclick="closeLineAddModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 transition">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+            <div class="w-16 h-16 bg-[#00B900] rounded-full mx-auto flex items-center justify-center text-white text-3xl mb-4 shadow-lg shadow-green-200">
+                <i class="fab fa-line"></i>
+            </div>
+            <h3 class="text-xl font-bold mb-2 text-gray-800">เพิ่มเพื่อนเพื่อรับแจ้งเตือน</h3>
+            <p class="text-sm text-gray-600 mb-6">กรุณากดปุ่มด้านล่างเพื่อเข้าแอป LINE<br>และเพิ่มบัญชีโรงเรียนเป็นเพื่อน</p>
+
+            <button id="btn-open-line-app" onclick="openLineAppAndCloseModal()" class="block w-full bg-white text-[#00B900] border-2 border-[#00B900] px-4 py-3 rounded-xl font-bold hover:bg-green-50 transition-all mb-3 text-center">
+                <i class="fas fa-external-link-alt"></i> เปิดแอป LINE เพื่อเพิ่มเพื่อน
+            </button>
+
+            <button onclick="closeLineAddModal()" class="w-full bg-gray-100 text-gray-500 px-4 py-3 rounded-xl font-bold hover:bg-gray-200 transition-all">
+                ยกเลิก / ปิดหน้าต่าง
+            </button>
+        </div>
+    </div>
+
     <!-- ========================================== -->
     <!-- JAVASCRIPT LOGIC -->
     <!-- ========================================== -->
@@ -989,23 +1011,49 @@
 
             sessionStorage.setItem('ns_pending_reg', JSON.stringify(payload));
 
-            if (!liff.isLoggedIn()) {
-                // เอา redirectUri ออก เพื่อให้ LIFF วิ่งกลับไปที่ Endpoint URL ที่ตั้งไว้ในระบบ ป้องกัน Error 404
-                liff.login();
-            } else {
-                window.location.reload(); 
-            }
+            // แสดงหน้าโหลดกำลังเตรียมการ
+            document.getElementById('loading-text').innerText = "กำลังเชื่อมต่อเข้าสู่ระบบ LINE...";
+            showLoading();
+
+            // หน่วงเวลาเล็กน้อยให้แสดงผล Popup เนียนขึ้น ก่อนจะเปลี่ยนหน้า
+            setTimeout(() => {
+                if (!liff.isLoggedIn()) {
+                    liff.login({ redirectUri: window.location.href });
+                } else {
+                    window.location.reload(); 
+                }
+            }, 800);
         }
 
-        // เพิ่มฟังก์ชันสำหรับเปิดลิงก์เพิ่มเพื่อน
+        // ตัวแปรเก็บลิงก์ LINE ชั่วคราว
+        let currentLineLinkToOpen = "";
+
+        // เปิดป๊อปอัพหน้าเว็บเราขึ้นมาก่อน
         function addSchoolLineFriend() {
-            // ดึงลิงก์จากที่แอดมินตั้งค่าไว้ หรือใช้ค่าเริ่มต้นถ้าไม่ได้ตั้ง
-            const lineLink = (systemSettings && systemSettings.lineLink) ? systemSettings.lineLink : "https://line.me/R/ti/p/@your_line_id";
-            if(lineLink && lineLink !== "") {
-                window.open(lineLink, '_blank');
+            currentLineLinkToOpen = (systemSettings && systemSettings.lineLink) ? systemSettings.lineLink : "https://line.me/R/ti/p/@your_line_id";
+            if(currentLineLinkToOpen && currentLineLinkToOpen !== "") {
+                document.getElementById('line-add-modal').classList.remove('hidden-view');
             } else {
                 showAlert('แจ้งเตือน', 'แอดมินยังไม่ได้ตั้งค่าลิงก์สำหรับเพิ่มเพื่อนในระบบ', 'info');
             }
+        }
+
+        function closeLineAddModal() {
+            document.getElementById('line-add-modal').classList.add('hidden-view');
+        }
+
+        // เมื่อกดปุ่มในป๊อปอัพ จะเด้งเข้าแอป LINE แล้วทำการปิดป๊อปอัพเราทิ้งทันที
+        function openLineAppAndCloseModal() {
+            if (liff.isInClient()) {
+                liff.openWindow({ url: currentLineLinkToOpen, external: false });
+            } else {
+                window.open(currentLineLinkToOpen, '_blank');
+            }
+            
+            // ปิดป๊อปอัพนี้อัตโนมัติ เพื่อให้ผู้ปกครองพร้อมกดปุ่มเชื่อมต่อบัญชีต่อเลย
+            setTimeout(() => {
+                closeLineAddModal();
+            }, 1000);
         }
 
         function showLoading() { document.getElementById('loading-overlay').classList.remove('hidden-view'); }
