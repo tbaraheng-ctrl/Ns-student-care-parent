@@ -957,9 +957,10 @@
             try {
                 await liff.init({ liffId: LIFF_ID });
                 if (liff.isLoggedIn()) {
-                    const pendingReg = sessionStorage.getItem('ns_pending_reg');
+                    // เปลี่ยนจาก sessionStorage เป็น localStorage ป้องกันข้อมูลหายเวลาสลับแอป
+                    const pendingReg = localStorage.getItem('ns_pending_reg');
                     if (pendingReg) {
-                        document.getElementById('loading-text').innerText = "กำลังผูกบัญชี LINE และบันทึกข้อมูล...";
+                        document.getElementById('loading-text').innerText = "กำลังรอรหัสผู้ใช้และบันทึกข้อมูล...";
                         document.getElementById('loading-warning').classList.remove('hidden-view');
                         showLoading();
                         try {
@@ -968,7 +969,7 @@
                             payload.lineId = profile.userId; 
                             
                             const res = await apiCall('register', payload);
-                            sessionStorage.removeItem('ns_pending_reg'); 
+                            localStorage.removeItem('ns_pending_reg'); 
                             hideLoading();
                             
                             if(res.status === 'success') {
@@ -1012,11 +1013,12 @@
                 relation: document.getElementById('reg-relation').value 
             };
 
-            sessionStorage.setItem('ns_pending_reg', JSON.stringify(payload));
+            // เปลี่ยนไปใช้ localStorage แทน sessionStorage เพื่อให้ข้อมูลคงอยู่แม้เบราว์เซอร์จะ Redirect กลับมาจาก LINE OAuth
+            localStorage.setItem('ns_pending_reg', JSON.stringify(payload));
 
-            // แสดง Pop-up กำลังเชื่อมต่อเข้าสู่ระบบ LINE
-            document.getElementById('loading-text').innerText = "กำลังเชื่อมต่อเข้าสู่ระบบ LINE...";
-            document.getElementById('loading-warning').classList.remove('hidden-view'); // แสดงคำเตือนห้ามปิดหน้า
+            // แสดง Pop-up กำลังเตรียมการเชื่อมต่อ (เอาข้อความห้ามปิดหน้าออกในขั้นตอนนี้)
+            document.getElementById('loading-text').innerText = "กำลังเตรียมการเชื่อมต่อ LINE...";
+            document.getElementById('loading-warning').classList.add('hidden-view'); 
             showLoading();
 
             setTimeout(() => {
@@ -1025,7 +1027,7 @@
                 } else {
                     window.location.reload(); 
                 }
-            }, 1500); // หน่วงเวลา 1.5 วินาทีให้ผู้ใช้อ่านข้อความเตือน
+            }, 1000); 
         }
 
         let currentLineLinkToOpen = "";
@@ -1105,7 +1107,11 @@
 
             if(!u || !p) return showAlert('ข้อผิดพลาด', 'กรุณากรอกข้อมูลให้ครบถ้วน', 'error');
 
+            // เพิ่มข้อความเตือนตอนล็อกอินด้วย (ตรวจสอบรหัสผู้ใช้งานเข้าสู่ระบบ)
+            document.getElementById('loading-text').innerText = "กำลังตรวจสอบรหัสผู้ใช้เข้าสู่ระบบ...";
+            document.getElementById('loading-warning').classList.remove('hidden-view'); 
             showLoading();
+
             try {
                 const res = await apiCall('login', { u: u, p: p });
 
