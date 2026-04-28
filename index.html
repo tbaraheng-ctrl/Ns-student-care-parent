@@ -962,15 +962,15 @@
                         try {
                             const profile = await liff.getProfile();
                             const payload = JSON.parse(pendingReg);
-                            payload.E = profile.userId; 
+                            payload.lineId = profile.userId; // แก้ไข Key ให้ตรงกับ API หลังบ้าน
                             
                             const res = await apiCall('register', payload);
                             sessionStorage.removeItem('ns_pending_reg'); 
                             hideLoading();
                             
                             if(res.status === 'success') {
-                                showAlert('ลงทะเบียนสำเร็จ!', 'ระบบเชื่อมต่อ LINE เรียบร้อย กรุณาเข้าสู่ระบบด้วยชื่อผู้ใช้ ' + payload.G, 'success');
-                                document.getElementById('login-username').value = payload.G;
+                                showAlert('ลงทะเบียนสำเร็จ!', 'ระบบเชื่อมต่อ LINE เรียบร้อย กรุณาเข้าสู่ระบบด้วยชื่อผู้ใช้ ' + payload.username, 'success');
+                                document.getElementById('login-username').value = payload.username;
                                 switchView('view-login');
                                 currentRegStep = 1; updateRegProgress();
                                 document.querySelectorAll('#view-register input').forEach(i => i.value = '');
@@ -982,7 +982,8 @@
                             }
                         } catch(e) {
                             hideLoading();
-                            showAlert('ข้อผิดพลาด', 'ดึงข้อมูล LINE Profile ไม่สำเร็จ กรุณาลองใหม่', 'error');
+                            console.error("Register Error:", e);
+                            showAlert('ข้อผิดพลาด', 'เกิดข้อผิดพลาดในการบันทึกข้อมูลลงฐานข้อมูล (' + e.message + ')', 'error');
                         }
                     }
                 }
@@ -998,24 +999,24 @@
             const grade = document.getElementById('reg-grade').value.trim();
             const room = document.getElementById('reg-room').value.trim();
 
+            // แก้ไขชุดข้อมูลที่ส่งไป ให้ตรงกับที่ Backend (doRegister) ต้องการเป๊ะๆ เพื่อไม่ให้เกิด Error
             const payload = {
-                A: document.getElementById('reg-stu-id').value,
-                B: prefix + fname + " " + lname,
-                C: document.getElementById('reg-stu-name').value,
-                D: grade + "/" + room,
-                E: "", 
-                F: document.getElementById('reg-pass1').value,
-                G: document.getElementById('reg-username').value,
-                H: document.getElementById('reg-relation').value 
+                studentId: document.getElementById('reg-stu-id').value,
+                parentName: prefix + fname + " " + lname,
+                studentName: document.getElementById('reg-stu-name').value,
+                gradeRoom: grade + "/" + room,
+                lineId: "", 
+                password: document.getElementById('reg-pass1').value,
+                username: document.getElementById('reg-username').value,
+                relation: document.getElementById('reg-relation').value 
             };
 
             sessionStorage.setItem('ns_pending_reg', JSON.stringify(payload));
 
-            // แสดงหน้าโหลดกำลังเตรียมการ
+            // แสดง Pop-up กำลังเชื่อมต่อเข้าสู่ระบบ LINE
             document.getElementById('loading-text').innerText = "กำลังเชื่อมต่อเข้าสู่ระบบ LINE...";
             showLoading();
 
-            // หน่วงเวลาเล็กน้อยให้แสดงผล Popup เนียนขึ้น ก่อนจะเปลี่ยนหน้า
             setTimeout(() => {
                 if (!liff.isLoggedIn()) {
                     liff.login({ redirectUri: window.location.href });
@@ -1025,10 +1026,9 @@
             }, 800);
         }
 
-        // ตัวแปรเก็บลิงก์ LINE ชั่วคราว
         let currentLineLinkToOpen = "";
 
-        // เปิดป๊อปอัพหน้าเว็บเราขึ้นมาก่อน
+        // เพิ่มฟังก์ชันสำหรับเปิดหน้าต่างป๊อปอัพเพิ่มเพื่อน
         function addSchoolLineFriend() {
             currentLineLinkToOpen = (systemSettings && systemSettings.lineLink) ? systemSettings.lineLink : "https://line.me/R/ti/p/@your_line_id";
             if(currentLineLinkToOpen && currentLineLinkToOpen !== "") {
@@ -1042,15 +1042,14 @@
             document.getElementById('line-add-modal').classList.add('hidden-view');
         }
 
-        // เมื่อกดปุ่มในป๊อปอัพ จะเด้งเข้าแอป LINE แล้วทำการปิดป๊อปอัพเราทิ้งทันที
+        // ซ่อนหน้าต่างอัตโนมัติ เมื่อกดไปเพิ่มเพื่อน
         function openLineAppAndCloseModal() {
             if (liff.isInClient()) {
                 liff.openWindow({ url: currentLineLinkToOpen, external: false });
             } else {
-                window.open(currentLineLinkToOpen, '_blank');
+                window.location.href = currentLineLinkToOpen; 
             }
             
-            // ปิดป๊อปอัพนี้อัตโนมัติ เพื่อให้ผู้ปกครองพร้อมกดปุ่มเชื่อมต่อบัญชีต่อเลย
             setTimeout(() => {
                 closeLineAddModal();
             }, 1000);
