@@ -45,9 +45,10 @@
 
     <!-- Loading Overlay -->
     <div id="loading-overlay" class="fixed inset-0 bg-black/50 z-[100] hidden-view flex justify-center items-center">
-        <div class="bg-white p-5 rounded-2xl flex flex-col items-center shadow-2xl">
+        <div class="bg-white p-5 rounded-2xl flex flex-col items-center shadow-2xl text-center">
             <i class="fas fa-circle-notch fa-spin text-4xl text-ns-blue mb-3"></i>
-            <span class="font-medium text-gray-700" id="loading-text">กำลังประมวลผล...</span>
+            <span class="font-medium text-gray-700 mb-1" id="loading-text">กำลังประมวลผล...</span>
+            <span id="loading-warning" class="text-red-500 text-xs font-bold hidden-view">กรุณารอสักครู่ ห้ามปิดหน้านี้เด็ดขาด</span>
         </div>
     </div>
 
@@ -252,12 +253,11 @@
                     <p class="text-sm text-gray-600 mb-6">เพื่อให้ระบบสามารถส่งข้อความแจ้งเตือนถึงคุณได้ กรุณาเพิ่มเพื่อนและเชื่อมต่อบัญชี</p>
                     
                     <div class="space-y-3">
-                        <!-- ปุ่มใหม่: ดึงลิงก์จากตั้งค่าระบบมาเปิดเพื่อเพิ่มเพื่อน -->
-                        <button type="button" onclick="addSchoolLineFriend()" class="bg-white text-[#00B900] border-2 border-[#00B900] px-6 py-3 rounded-xl font-bold hover:bg-green-50 w-full flex items-center justify-center gap-2 transition-all">
+                        <button type="button" id="btn-add-friend" onclick="addSchoolLineFriend()" class="bg-white text-[#00B900] border-2 border-[#00B900] px-6 py-3 rounded-xl font-bold hover:bg-green-50 w-full flex items-center justify-center gap-2 transition-all">
                             <i class="fas fa-user-plus text-xl"></i> 1. กดเพิ่มเพื่อนโรงเรียน
                         </button>
                         
-                        <button type="button" onclick="startLineLoginAndRegister()" class="bg-[#00B900] text-white px-6 py-4 rounded-xl font-bold shadow-md hover:bg-green-600 w-full flex items-center justify-center gap-2 active:scale-95 transition-all">
+                        <button type="button" id="btn-connect-line" onclick="startLineLoginAndRegister()" class="bg-gray-300 text-gray-500 cursor-not-allowed px-6 py-4 rounded-xl font-bold shadow-sm w-full flex items-center justify-center gap-2 transition-all" disabled>
                             <i class="fas fa-link text-xl"></i> 2. เชื่อมต่อบัญชีเสร็จสิ้น
                         </button>
                     </div>
@@ -768,6 +768,28 @@
         </div>
     </div>
 
+    <!-- Modal: ป๊อปอัพเพิ่มเพื่อน LINE (เพิ่มใหม่) -->
+    <div id="line-add-modal" class="fixed inset-0 bg-black/60 z-[90] hidden-view flex justify-center items-center p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-3xl w-full max-w-sm p-6 text-center transform transition-all shadow-2xl relative">
+            <button onclick="closeLineAddModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 transition">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+            <div class="w-16 h-16 bg-[#00B900] rounded-full mx-auto flex items-center justify-center text-white text-3xl mb-4 shadow-lg shadow-green-200">
+                <i class="fab fa-line"></i>
+            </div>
+            <h3 class="text-xl font-bold mb-2 text-gray-800">เพิ่มเพื่อนเพื่อรับแจ้งเตือน</h3>
+            <p class="text-sm text-gray-600 mb-6">กรุณากดปุ่มด้านล่างเพื่อเข้าแอป LINE<br>และเพิ่มบัญชีโรงเรียนเป็นเพื่อน</p>
+
+            <button id="btn-open-line-app" onclick="openLineAppAndCloseModal()" class="block w-full bg-white text-[#00B900] border-2 border-[#00B900] px-4 py-3 rounded-xl font-bold hover:bg-green-50 transition-all mb-3 text-center">
+                <i class="fas fa-external-link-alt"></i> เปิดแอป LINE เพื่อเพิ่มเพื่อน
+            </button>
+
+            <button onclick="closeLineAddModal()" class="w-full bg-gray-100 text-gray-500 px-4 py-3 rounded-xl font-bold hover:bg-gray-200 transition-all">
+                ยกเลิก / ปิดหน้าต่าง
+            </button>
+        </div>
+    </div>
+
     <!-- ========================================== -->
     <!-- JAVASCRIPT LOGIC -->
     <!-- ========================================== -->
@@ -784,6 +806,7 @@
         let clubInterval = null; 
         let systemSettings = {}; 
         let studentCurrentClub = null; 
+        let hasClickedAddFriend = false; // ตัวแปรสำหรับตรวจสอบการกดเพิ่มเพื่อน
 
         document.addEventListener("DOMContentLoaded", async () => {
             const savedUser = localStorage.getItem('ns_username');
@@ -937,19 +960,20 @@
                     const pendingReg = sessionStorage.getItem('ns_pending_reg');
                     if (pendingReg) {
                         document.getElementById('loading-text').innerText = "กำลังผูกบัญชี LINE และบันทึกข้อมูล...";
+                        document.getElementById('loading-warning').classList.remove('hidden-view');
                         showLoading();
                         try {
                             const profile = await liff.getProfile();
                             const payload = JSON.parse(pendingReg);
-                            payload.E = profile.userId; 
+                            payload.lineId = profile.userId; 
                             
                             const res = await apiCall('register', payload);
                             sessionStorage.removeItem('ns_pending_reg'); 
                             hideLoading();
                             
                             if(res.status === 'success') {
-                                showAlert('ลงทะเบียนสำเร็จ!', 'ระบบเชื่อมต่อ LINE เรียบร้อย กรุณาเข้าสู่ระบบด้วยชื่อผู้ใช้ ' + payload.G, 'success');
-                                document.getElementById('login-username').value = payload.G;
+                                showAlert('ลงทะเบียนสำเร็จ!', 'ระบบเชื่อมต่อ LINE เรียบร้อย กรุณาเข้าสู่ระบบด้วยชื่อผู้ใช้ ' + payload.username, 'success');
+                                document.getElementById('login-username').value = payload.username;
                                 switchView('view-login');
                                 currentRegStep = 1; updateRegProgress();
                                 document.querySelectorAll('#view-register input').forEach(i => i.value = '');
@@ -978,40 +1002,70 @@
             const room = document.getElementById('reg-room').value.trim();
 
             const payload = {
-                A: document.getElementById('reg-stu-id').value,
-                B: prefix + fname + " " + lname,
-                C: document.getElementById('reg-stu-name').value,
-                D: grade + "/" + room,
-                E: "", 
-                F: document.getElementById('reg-pass1').value,
-                G: document.getElementById('reg-username').value,
-                H: document.getElementById('reg-relation').value 
+                studentId: document.getElementById('reg-stu-id').value,
+                parentName: prefix + fname + " " + lname,
+                studentName: document.getElementById('reg-stu-name').value,
+                gradeRoom: grade + "/" + room,
+                lineId: "", 
+                password: document.getElementById('reg-pass1').value,
+                username: document.getElementById('reg-username').value,
+                relation: document.getElementById('reg-relation').value 
             };
 
             sessionStorage.setItem('ns_pending_reg', JSON.stringify(payload));
 
-            if (!liff.isLoggedIn()) {
-                liff.login({ redirectUri: window.location.href });
-            } else {
-                window.location.reload(); 
-            }
+            // แสดง Pop-up กำลังเชื่อมต่อเข้าสู่ระบบ LINE
+            document.getElementById('loading-text').innerText = "กำลังเชื่อมต่อเข้าสู่ระบบ LINE...";
+            document.getElementById('loading-warning').classList.remove('hidden-view'); // แสดงคำเตือนห้ามปิดหน้า
+            showLoading();
+
+            setTimeout(() => {
+                if (!liff.isLoggedIn()) {
+                    liff.login({ redirectUri: window.location.href });
+                } else {
+                    window.location.reload(); 
+                }
+            }, 1500); // หน่วงเวลา 1.5 วินาทีให้ผู้ใช้อ่านข้อความเตือน
         }
 
-        // เพิ่มฟังก์ชันสำหรับเปิดลิงก์เพิ่มเพื่อน
+        let currentLineLinkToOpen = "";
+
+        // เพิ่มฟังก์ชันสำหรับเปิดหน้าต่างป๊อปอัพเพิ่มเพื่อน
         function addSchoolLineFriend() {
-            // ดึงลิงก์จากที่แอดมินตั้งค่าไว้ หรือใช้ค่าเริ่มต้นถ้าไม่ได้ตั้ง
-            const lineLink = (systemSettings && systemSettings.lineLink) ? systemSettings.lineLink : "https://line.me/R/ti/p/@your_line_id";
-            if(lineLink && lineLink !== "") {
-                window.open(lineLink, '_blank');
+            currentLineLinkToOpen = (systemSettings && systemSettings.lineLink) ? systemSettings.lineLink : "https://line.me/R/ti/p/@your_line_id";
+            if(currentLineLinkToOpen && currentLineLinkToOpen !== "") {
+                document.getElementById('line-add-modal').classList.remove('hidden-view');
             } else {
                 showAlert('แจ้งเตือน', 'แอดมินยังไม่ได้ตั้งค่าลิงก์สำหรับเพิ่มเพื่อนในระบบ', 'info');
             }
+        }
+
+        function closeLineAddModal() {
+            document.getElementById('line-add-modal').classList.add('hidden-view');
+        }
+
+        // เปิดแอป LINE และปลดล็อกปุ่มเชื่อมต่อ
+        function openLineAppAndCloseModal() {
+            if (liff.isInClient()) {
+                liff.openWindow({ url: currentLineLinkToOpen, external: false });
+            } else {
+                window.location.href = currentLineLinkToOpen; 
+            }
+            
+            // ตั้งค่าสถานะว่ากดเพิ่มเพื่อนแล้ว และเปิดให้ปุ่มที่ 2 ทำงานได้
+            hasClickedAddFriend = true;
+            updateConnectButtonState();
+            
+            setTimeout(() => {
+                closeLineAddModal();
+            }, 1000);
         }
 
         function showLoading() { document.getElementById('loading-overlay').classList.remove('hidden-view'); }
         function hideLoading() { 
             document.getElementById('loading-overlay').classList.add('hidden-view'); 
             document.getElementById('loading-text').innerText = "กำลังประมวลผล...";
+            document.getElementById('loading-warning').classList.add('hidden-view'); // ซ่อนคำเตือนกลับเป็นปกติ
         }
         
         function showAlert(title, message, type='info') {
@@ -1534,6 +1588,18 @@
             });
         }
 
+        // เพิ่มฟังก์ชันสำหรับตรวจสอบและเปลี่ยนสถานะของปุ่มเชื่อมต่อ
+        function updateConnectButtonState() {
+            const btnConnect = document.getElementById('btn-connect-line');
+            if (hasClickedAddFriend) {
+                btnConnect.disabled = false;
+                btnConnect.className = "bg-[#00B900] text-white px-6 py-4 rounded-xl font-bold shadow-md hover:bg-green-600 w-full flex items-center justify-center gap-2 active:scale-95 transition-all";
+            } else {
+                btnConnect.disabled = true;
+                btnConnect.className = "bg-gray-300 text-gray-500 cursor-not-allowed px-6 py-4 rounded-xl font-bold shadow-sm w-full flex items-center justify-center gap-2 transition-all";
+            }
+        }
+
         function nextRegStep(step) {
             if(step === 2) {
                 const fname = document.getElementById('reg-firstname').value;
@@ -1563,6 +1629,9 @@
                 const p1 = document.getElementById('reg-pass1').value;
                 const p2 = document.getElementById('reg-pass2').value;
                 if(p1.length < 4 || p1 !== p2) return showAlert('รหัสผ่านไม่ถูกต้อง', 'รหัสผ่านต้องตรงกันและไม่ว่างเปล่า', 'error');
+                
+                // อัปเดตสถานะปุ่มเผื่อผู้ใช้กดย้อนกลับแล้วกลับมาหน้าเดิม
+                updateConnectButtonState();
             }
 
             document.getElementById(`reg-step-${currentRegStep}`).classList.add('hidden-view');
