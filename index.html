@@ -2093,11 +2093,34 @@
 
         async function confirmClubRegistration() {
             closeClubModal();
-            showLoading();
+            navApp('dashboard'); // พาไปหน้าสถิติทันที
             
             const club = clubDataList.find(c => c.id === selectedClubId);
             const u = currentUser.data;
             const cleanId = String(u.id).replace(/_p|_P/gi, '').trim(); 
+
+            // Backup ข้อมูลเดิม
+            const oldClub = studentCurrentClub ? JSON.parse(JSON.stringify(studentCurrentClub)) : null;
+
+            // อัปเดต UI ชุมนุมทันที (Optimistic Update)
+            studentCurrentClub = {
+                id: club.id,
+                name: club.name,
+                regDate: new Date().toISOString(),
+                teacher: club.teacher,
+                objective: club.objective,
+                location: club.location,
+                equipment: club.equipment
+            };
+
+            const cacheKey = 'ns_stats_' + cleanId;
+            let currentStats = JSON.parse(localStorage.getItem(cacheKey) || '{}');
+            currentStats.currentClub = studentCurrentClub;
+            updateStatsUI(currentStats);
+
+            // แจ้งเตือนว่ากำลังบันทึกเบื้องหลัง
+            const dashSyncTime = document.getElementById('dash-sync-time');
+            if(dashSyncTime) dashSyncTime.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> กำลังบันทึกเบื้องหลัง...';
 
             const payload = {
                 clubId: selectedClubId,
@@ -2111,27 +2134,32 @@
                 equipment: club.equipment
             };
 
-            try {
-                const res = await apiCall('registerClub', payload);
+            // เรียก API อยู่เบื้องหลังโดยไม่บล็อกหน้าจอ
+            apiCall('registerClub', payload).then(res => {
                 if(res.status === 'success') {
-                    showAlert('สำเร็จ', 'ลงทะเบียนชุมนุมเรียบร้อยแล้ว', 'success');
-                    
-                    // ลบแคชทิ้งเพื่อให้หน้าสถิติโหลดข้อมูลใหม่
-                    localStorage.removeItem('ns_stats_' + cleanId);
-                    localStorage.removeItem('ns_stats_time_' + cleanId);
+                    // อัปเดตแคชให้สมบูรณ์
+                    localStorage.setItem(cacheKey, JSON.stringify(currentStats));
                     localStorage.removeItem('ns_club_list_data');
                     localStorage.removeItem('ns_club_time');
 
-                    loadClubs(); 
-                    loadStats(); 
-                    navApp('dashboard'); 
+                    if(dashSyncTime) dashSyncTime.innerHTML = '<i class="fas fa-check text-green-500 mr-1"></i> บันทึกสำเร็จ';
+                    setTimeout(() => updateSyncTime('dash-sync-time'), 3000);
                 } else {
+                    // คืนค่ากลับถ้าบันทึกไม่สำเร็จ
+                    studentCurrentClub = oldClub;
+                    currentStats.currentClub = oldClub;
+                    updateStatsUI(currentStats);
+                    if(dashSyncTime) updateSyncTime('dash-sync-time');
                     showAlert('ไม่สามารถลงทะเบียนได้', res.message, 'error');
                 }
-            } catch(e) {
+            }).catch(e => {
+                // คืนค่ากลับถ้าบันทึกไม่สำเร็จ
+                studentCurrentClub = oldClub;
+                currentStats.currentClub = oldClub;
+                updateStatsUI(currentStats);
+                if(dashSyncTime) updateSyncTime('dash-sync-time');
                 handleErrorAlert(e);
-            }
-            hideLoading();
+            });
         }
 
         async function openChangeClubModal() {
@@ -2223,11 +2251,35 @@
 
         async function executeClubChange() {
             document.getElementById('confirm-change-modal').classList.add('hidden-view');
-            showLoading();
+            closeChangeClubModal();
+            navApp('dashboard'); // พาไปหน้าสถิติทันที
             
             const club = clubDataList.find(c => c.id === newSelectedClubId);
             const cleanId = String(currentUser.data.id).replace(/_p|_P/gi, '').trim(); 
             
+            // Backup ข้อมูลเดิม
+            const oldClub = studentCurrentClub ? JSON.parse(JSON.stringify(studentCurrentClub)) : null;
+
+            // อัปเดต UI ชุมนุมทันที (Optimistic Update)
+            studentCurrentClub = {
+                id: club.id,
+                name: club.name,
+                regDate: new Date().toISOString(),
+                teacher: club.teacher,
+                objective: club.objective,
+                location: club.location,
+                equipment: club.equipment
+            };
+
+            const cacheKey = 'ns_stats_' + cleanId;
+            let currentStats = JSON.parse(localStorage.getItem(cacheKey) || '{}');
+            currentStats.currentClub = studentCurrentClub;
+            updateStatsUI(currentStats);
+
+            // แจ้งเตือนว่ากำลังบันทึกเบื้องหลัง
+            const dashSyncTime = document.getElementById('dash-sync-time');
+            if(dashSyncTime) dashSyncTime.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> กำลังบันทึกเบื้องหลัง...';
+
             const payload = {
                 studentId: cleanId, 
                 studentName: currentUser.data.name,
@@ -2240,27 +2292,32 @@
                 newEquipment: club.equipment
             };
 
-            try {
-                const res = await apiCall('changeClub', payload);
+            // เรียก API อยู่เบื้องหลังโดยไม่บล็อกหน้าจอ
+            apiCall('changeClub', payload).then(res => {
                 if(res.status === 'success') {
-                    showAlert('เปลี่ยนชุมนุมสำเร็จ', 'ระบบได้ทำการอัปเดตข้อมูลชุมนุมใหม่ของคุณเรียบร้อยแล้ว', 'success');
-                    closeChangeClubModal();
-                    
-                    // ลบแคชทิ้งเพื่อให้หน้าสถิติโหลดข้อมูลใหม่
-                    localStorage.removeItem('ns_stats_' + cleanId);
-                    localStorage.removeItem('ns_stats_time_' + cleanId);
+                    // อัปเดตแคชให้สมบูรณ์
+                    localStorage.setItem(cacheKey, JSON.stringify(currentStats));
                     localStorage.removeItem('ns_club_list_data');
                     localStorage.removeItem('ns_club_time');
 
-                    loadStats(); 
-                    navApp('dashboard'); 
+                    if(dashSyncTime) dashSyncTime.innerHTML = '<i class="fas fa-check text-green-500 mr-1"></i> บันทึกสำเร็จ';
+                    setTimeout(() => updateSyncTime('dash-sync-time'), 3000);
                 } else {
+                    // คืนค่ากลับถ้าบันทึกไม่สำเร็จ
+                    studentCurrentClub = oldClub;
+                    currentStats.currentClub = oldClub;
+                    updateStatsUI(currentStats);
+                    if(dashSyncTime) updateSyncTime('dash-sync-time');
                     showAlert('ไม่สามารถเปลี่ยนชุมนุมได้', res.message, 'error');
                 }
-            } catch(e) {
+            }).catch(e => {
+                // คืนค่ากลับถ้าบันทึกไม่สำเร็จ
+                studentCurrentClub = oldClub;
+                currentStats.currentClub = oldClub;
+                updateStatsUI(currentStats);
+                if(dashSyncTime) updateSyncTime('dash-sync-time');
                 handleErrorAlert(e);
-            }
-            hideLoading();
+            });
         }
 
         document.getElementById('set-logo-file').addEventListener('change', function(e) {
