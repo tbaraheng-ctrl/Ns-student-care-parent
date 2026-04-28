@@ -73,7 +73,7 @@
                 </div>
                 <h1 class="text-2xl font-bold text-ns-blue">NS Student Care</h1>
                 <p id="school-name-login" class="text-gray-500 text-sm">กำลังเชื่อมต่อฐานข้อมูล...</p>
-                <span class="inline-block bg-blue-50 text-ns-blue text-xs px-3 py-1 rounded-full font-medium mt-2">สำหรับผู้ปกครอง</span>
+                <span class="inline-block bg-blue-50 text-ns-blue text-xs px-3 py-1 rounded-full font-medium mt-2">สำหรับนักเรียนและผู้ปกครอง</span>
             </div>
 
             <form id="login-form" onsubmit="handleLogin(event)" class="space-y-5">
@@ -763,7 +763,9 @@
     <!-- ========================================== -->
     <script>
         const GAS_URL = "https://script.google.com/macros/s/AKfycbyGxA-VPEmk4HYGH43_YLFYZuXSgNEKN--5QkXPwSGI2FodfcikXGwxZDk7IkQdcyU/exec"; 
-        const LIFF_ID = "2009880863-QFRkiIsy";
+        
+        // ใส่ LIFF ID ตัวใหม่ที่ได้จาก Provider เดียวกับบอท (ระวังอย่าให้มีช่องว่างหรือบรรทัดใหม่)
+        const LIFF_ID = "2009881010-uAKXQOsM"; 
         
         let currentUser = null; 
         let currentRegStep = 1;
