@@ -249,11 +249,17 @@
                     <div class="w-20 h-20 bg-[#00B900] rounded-2xl mx-auto flex items-center justify-center text-white text-4xl mb-4 shadow-lg shadow-green-200">
                         <i class="fab fa-line"></i>
                     </div>
-                    <p class="text-sm text-gray-600 mb-6">คลิกปุ่มด้านล่างเพื่อเชื่อมต่อบัญชีสำหรับรับการแจ้งเตือนพฤติกรรม สแกนเข้า-ออก และเพิ่มเพื่อนโรงเรียนอัตโนมัติ</p>
+                    <p class="text-sm text-gray-600 mb-6">เพื่อให้ระบบสามารถส่งข้อความแจ้งเตือนถึงคุณได้ กรุณาเพิ่มเพื่อนและเชื่อมต่อบัญชี</p>
                     
-                    <button type="button" onclick="startLineLoginAndRegister()" class="bg-[#00B900] text-white px-6 py-4 rounded-xl font-bold shadow-md hover:bg-green-600 w-full flex items-center justify-center gap-2 active:scale-95 transition-all">
-                        <i class="fas fa-link text-xl"></i> เชื่อมต่อ LINE และเสร็จสิ้น
-                    </button>
+                    <div class="space-y-3">
+                        <button type="button" onclick="addSchoolLineFriend()" class="bg-white text-[#00B900] border-2 border-[#00B900] px-6 py-3 rounded-xl font-bold hover:bg-green-50 w-full flex items-center justify-center gap-2 transition-all">
+                            <i class="fas fa-user-plus text-xl"></i> 1. กดเพิ่มเพื่อนโรงเรียน
+                        </button>
+                        
+                        <button type="button" onclick="startLineLoginAndRegister()" class="bg-[#00B900] text-white px-6 py-4 rounded-xl font-bold shadow-md hover:bg-green-600 w-full flex items-center justify-center gap-2 active:scale-95 transition-all">
+                            <i class="fas fa-link text-xl"></i> 2. เชื่อมต่อบัญชีเสร็จสิ้น
+                        </button>
+                    </div>
                 </div>
                 <div class="flex gap-3 mt-2">
                     <button type="button" onclick="prevRegStep(2)" class="w-full bg-gray-200 text-gray-700 py-3 rounded-xl font-medium">ย้อนกลับแก้ไขข้อมูล</button>
@@ -777,7 +783,6 @@
         let clubInterval = null; 
         let systemSettings = {}; 
         let studentCurrentClub = null; 
-        let alertCallback = null; // เพิ่มตัวแปรสำหรับรับ Callback เพื่อทำงานต่อหลังจากกดตกลง
 
         document.addEventListener("DOMContentLoaded", async () => {
             const savedUser = localStorage.getItem('ns_username');
@@ -985,9 +990,21 @@
             sessionStorage.setItem('ns_pending_reg', JSON.stringify(payload));
 
             if (!liff.isLoggedIn()) {
-                liff.login({ redirectUri: window.location.href });
+                // เอา redirectUri ออก เพื่อให้ LIFF วิ่งกลับไปที่ Endpoint URL ที่ตั้งไว้ในระบบ ป้องกัน Error 404
+                liff.login();
             } else {
                 window.location.reload(); 
+            }
+        }
+
+        // เพิ่มฟังก์ชันสำหรับเปิดลิงก์เพิ่มเพื่อน
+        function addSchoolLineFriend() {
+            // ดึงลิงก์จากที่แอดมินตั้งค่าไว้ หรือใช้ค่าเริ่มต้นถ้าไม่ได้ตั้ง
+            const lineLink = (systemSettings && systemSettings.lineLink) ? systemSettings.lineLink : "https://line.me/R/ti/p/@your_line_id";
+            if(lineLink && lineLink !== "") {
+                window.open(lineLink, '_blank');
+            } else {
+                showAlert('แจ้งเตือน', 'แอดมินยังไม่ได้ตั้งค่าลิงก์สำหรับเพิ่มเพื่อนในระบบ', 'info');
             }
         }
 
@@ -997,23 +1014,15 @@
             document.getElementById('loading-text').innerText = "กำลังประมวลผล...";
         }
         
-        function showAlert(title, message, type='info', callback=null) {
+        function showAlert(title, message, type='info') {
             document.getElementById('alert-title').innerText = title;
             document.getElementById('alert-message').innerText = message;
             const icon = document.getElementById('alert-icon');
             icon.className = 'text-5xl mb-4 ' + (type === 'success' ? 'text-green-500' : type === 'error' ? 'text-red-500' : 'text-ns-blue');
             icon.innerHTML = type === 'success' ? '<i class="fas fa-check-circle"></i>' : type === 'error' ? '<i class="fas fa-times-circle"></i>' : '<i class="fas fa-info-circle"></i>';
-            alertCallback = callback;
             document.getElementById('alert-modal').classList.remove('hidden-view');
         }
-        
-        function closeAlert() { 
-            document.getElementById('alert-modal').classList.add('hidden-view'); 
-            if(typeof alertCallback === 'function') {
-                alertCallback();
-                alertCallback = null;
-            }
-        }
+        function closeAlert() { document.getElementById('alert-modal').classList.add('hidden-view'); }
 
         function switchView(viewId) {
             ['view-login', 'view-register', 'app-layout'].forEach(id => {
