@@ -48,6 +48,7 @@
         <div class="bg-white p-5 rounded-2xl flex flex-col items-center shadow-2xl">
             <i class="fas fa-circle-notch fa-spin text-4xl text-ns-blue mb-3"></i>
             <span class="font-medium text-gray-700" id="loading-text">กำลังประมวลผล...</span>
+            <p id="loading-warning" class="text-xs text-red-500 mt-2 hidden-view font-medium text-center">ห้ามปิดหรือรีเฟรชหน้าจอนี้<br>กำลังเชื่อมต่อกับฐานข้อมูล</p>
         </div>
     </div>
 
@@ -56,7 +57,7 @@
         <div class="bg-white rounded-2xl w-full max-w-sm p-6 text-center transform transition-all shadow-xl">
             <div id="alert-icon" class="text-5xl mb-4 text-ns-blue"><i class="fas fa-info-circle"></i></div>
             <h3 id="alert-title" class="text-xl font-bold mb-2">แจ้งเตือน</h3>
-            <p id="alert-message" class="text-gray-600 mb-6">ข้อความ</p>
+            <p id="alert-message" class="text-gray-600 mb-6 whitespace-pre-line">ข้อความ</p>
             <button onclick="closeAlert()" class="w-full bg-ns-blue text-white py-3 rounded-xl font-medium hover:bg-blue-800 transition">ตกลง</button>
         </div>
     </div>
@@ -67,6 +68,7 @@
     <div id="view-login" class="absolute inset-0 overflow-y-auto flex flex-col justify-center items-center p-4 bg-gradient-to-br from-blue-50 to-orange-50">
         <div class="glass-panel w-full max-w-md p-8 rounded-3xl shadow-2xl border border-white/50 my-auto">
             <div class="text-center mb-8">
+                <!-- แก้ไขโลโก้: นำกรอบวงกลมออก ปรับขนาดให้เหมาะสม และป้องกันภาพผิดสัดส่วน -->
                 <div class="w-32 h-32 sm:w-40 sm:h-40 mx-auto mb-4 flex items-center justify-center">
                     <img id="main-logo" src="https://ui-avatars.com/api/?name=NS&background=1E3A8A&color=fff&size=150" alt="Logo" class="max-w-full max-h-full object-contain drop-shadow-md transition-transform hover:scale-105">
                 </div>
@@ -251,6 +253,7 @@
                     <p class="text-sm text-gray-600 mb-6">เพื่อให้ระบบสามารถส่งข้อความแจ้งเตือนถึงคุณได้ กรุณาเพิ่มเพื่อนและเชื่อมต่อบัญชี</p>
                     
                     <div class="space-y-3">
+                        <!-- ปุ่มใหม่: ดึงลิงก์จากตั้งค่าระบบมาเปิดเพื่อเพิ่มเพื่อน -->
                         <button type="button" id="btn-add-friend" onclick="addSchoolLineFriend()" class="bg-white text-[#00B900] border-2 border-[#00B900] px-6 py-3 rounded-xl font-bold hover:bg-green-50 w-full flex items-center justify-center gap-2 transition-all">
                             <i class="fas fa-user-plus text-xl"></i> 1. กดเพิ่มเพื่อนโรงเรียน
                         </button>
@@ -744,6 +747,19 @@
         </div>
     </div>
 
+    <!-- Modal: เพิ่มเพื่อน LINE -->
+    <div id="line-add-modal" class="fixed inset-0 bg-black/60 z-[70] hidden-view flex justify-center items-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-sm p-6 transform transition-all shadow-xl text-center">
+            <div class="w-16 h-16 bg-green-100 text-[#00B900] rounded-full flex items-center justify-center text-3xl mx-auto mb-4"><i class="fas fa-user-plus"></i></div>
+            <h3 class="text-xl font-bold mb-2 text-gray-800">เพิ่มเพื่อนโรงเรียน</h3>
+            <p class="text-sm text-gray-600 mb-6">ระบบจะเปิดแอปพลิเคชัน LINE เพื่อให้คุณกดเพิ่มเพื่อน</p>
+            <div class="flex gap-3">
+                <button onclick="closeLineAddModal()" class="w-1/2 bg-gray-200 text-gray-700 py-3 rounded-xl font-medium">ยกเลิก</button>
+                <button onclick="openLineAppAndCloseModal()" class="w-1/2 bg-[#00B900] text-white py-3 rounded-xl font-medium shadow-md">เปิดแอป LINE</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal: QR Code บัตรประจำตัว -->
     <div id="qr-modal" class="fixed inset-0 bg-black/70 z-[80] hidden-view flex justify-center items-center p-4 backdrop-blur-sm transition-opacity" onclick="closeQrModal()">
         <div class="bg-white rounded-3xl w-full max-w-xs p-8 text-center transform transition-all shadow-2xl relative" onclick="event.stopPropagation()">
@@ -763,28 +779,6 @@
             </div>
             
             <p class="text-[10px] text-gray-400 mt-6"><i class="fas fa-info-circle"></i> ใช้สำหรับสแกนทำกิจกรรม</p>
-        </div>
-    </div>
-
-    <!-- Modal: ป๊อปอัพเพิ่มเพื่อน LINE -->
-    <div id="line-add-modal" class="fixed inset-0 bg-black/60 z-[90] hidden-view flex justify-center items-center p-4 backdrop-blur-sm transition-opacity">
-        <div class="bg-white rounded-3xl w-full max-w-sm p-6 text-center transform transition-all shadow-2xl relative">
-            <button onclick="closeLineAddModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 transition">
-                <i class="fas fa-times text-xl"></i>
-            </button>
-            <div class="w-16 h-16 bg-[#00B900] rounded-full mx-auto flex items-center justify-center text-white text-3xl mb-4 shadow-lg shadow-green-200">
-                <i class="fab fa-line"></i>
-            </div>
-            <h3 class="text-xl font-bold mb-2 text-gray-800">เพิ่มเพื่อนเพื่อรับแจ้งเตือน</h3>
-            <p class="text-sm text-gray-600 mb-6">กรุณากดปุ่มด้านล่างเพื่อเข้าแอป LINE<br>และเพิ่มบัญชีโรงเรียนเป็นเพื่อน</p>
-
-            <button id="btn-open-line-app" onclick="openLineAppAndCloseModal()" class="block w-full bg-white text-[#00B900] border-2 border-[#00B900] px-4 py-3 rounded-xl font-bold hover:bg-green-50 transition-all mb-3 text-center">
-                <i class="fas fa-external-link-alt"></i> เปิดแอป LINE เพื่อเพิ่มเพื่อน
-            </button>
-
-            <button onclick="closeLineAddModal()" class="w-full bg-gray-100 text-gray-500 px-4 py-3 rounded-xl font-bold hover:bg-gray-200 transition-all">
-                ยกเลิก / ปิดหน้าต่าง
-            </button>
         </div>
     </div>
 
@@ -817,19 +811,18 @@
             await initLIFF();
         });
 
-        // จัดการเชื่อมต่อ API แบบมี Timeout ป้องกันเว็บค้าง
+        // จัดการเชื่อมต่อ API แบบมี Timeout ป้องกันเว็บค้าง (ปรับเป็น 30 วินาที)
         async function apiCall(action, params = {}) {
             const payload = { action: action, ...params };
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 15000); 
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // เพิ่ม Timeout เป็น 30 วินาที
 
             try {
                 const response = await fetch(GAS_URL, { 
                     method: 'POST', 
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
                     body: JSON.stringify(payload),
-                    signal: controller.signal,
-                    redirect: 'follow' // เพิ่มเพื่อรองรับการ Redirect ของ Google Apps Script (สำคัญมาก)
+                    signal: controller.signal
                 });
                 clearTimeout(timeoutId);
                 
@@ -853,7 +846,7 @@
             if (err.message === "DEPLOY_ERROR") {
                 showAlert("ระบบถูกบล็อกการเชื่อมต่อโดย Google!", "สาเหตุ: การตั้งค่า Deploy ผิดพลาด\nวิธีแก้: \nใน Apps Script ตอน Deploy ช่อง 'ผู้มีสิทธิ์เข้าถึง' ต้องตั้งเป็น 'ทุกคน (Anyone)'", "error");
             } else if (err.message === "TIMEOUT") {
-                showAlert("หมดเวลาเชื่อมต่อ", "เซิร์ฟเวอร์ไม่ตอบสนองเกิน 15 วินาที\nกรุณาตรวจสอบอินเทอร์เน็ตของคุณ", "error");
+                showAlert("หมดเวลาเชื่อมต่อ", "เซิร์ฟเวอร์ตอบสนองช้าเกิน 30 วินาที\nอาจเกิดจากการบันทึกข้อมูลจำนวนมาก หรืออินเทอร์เน็ตมีปัญหา", "error");
             } else {
                 showAlert("เกิดข้อผิดพลาด", err.message, "error");
             }
@@ -956,42 +949,9 @@
             try {
                 await liff.init({ liffId: LIFF_ID });
                 if (liff.isLoggedIn()) {
-                    // เปลี่ยนจาก sessionStorage เป็น localStorage ป้องกันข้อมูลหายเวลาสลับแอป
                     const pendingReg = localStorage.getItem('ns_pending_reg');
                     if (pendingReg) {
-                        document.getElementById('loading-text').innerText = "กำลังลงทะเบียนกรุณารอสักครู่...";
-                        document.getElementById('loading-warning').classList.remove('hidden-view');
-                        showLoading();
-                        try {
-                            const profile = await liff.getProfile();
-                            const payload = JSON.parse(pendingReg);
-                            payload.lineId = profile.userId; 
-                            
-                            const res = await apiCall('register', payload);
-                            localStorage.removeItem('ns_pending_reg'); 
-                            hideLoading();
-                            
-                            if(res.status === 'success') {
-                                showAlert('ลงทะเบียนสำเร็จ!', 'ระบบเชื่อมต่อ LINE เรียบร้อย กรุณาเข้าสู่ระบบด้วยชื่อผู้ใช้ ' + payload.username, 'success');
-                                document.getElementById('login-username').value = payload.username;
-                                switchView('view-login');
-                                currentRegStep = 1; updateRegProgress();
-                                document.querySelectorAll('#view-register input').forEach(i => i.value = '');
-                                document.getElementById('reg-step-3').classList.add('hidden-view');
-                                document.getElementById('reg-step-1').classList.remove('hidden-view');
-                                liff.logout();
-                            } else {
-                                showAlert('เกิดข้อผิดพลาด', res.message || 'ไม่สามารถบันทึกข้อมูลได้', 'error');
-                            }
-                        } catch(e) {
-                            hideLoading();
-                            console.error(e);
-                            if(e.message && e.message.includes('Profile')) {
-                                showAlert('ข้อผิดพลาด', 'ดึงข้อมูล LINE Profile ไม่สำเร็จ กรุณาลองใหม่', 'error');
-                            } else {
-                                handleErrorAlert(e);
-                            }
-                        }
+                        await processRegistration(pendingReg);
                     }
                 }
             } catch (err) {
@@ -999,15 +959,63 @@
             }
         }
 
+        async function processRegistration(payloadStr) {
+            document.getElementById('loading-text').innerText = "กำลังลงทะเบียนและบันทึกข้อมูล...";
+            document.getElementById('loading-warning').classList.remove('hidden-view');
+            showLoading();
+            
+            try {
+                // บังคับรอให้ LIFF โหลดสมบูรณ์ก่อนเรียกใช้
+                await liff.ready; 
+                const profile = await liff.getProfile();
+                const payload = JSON.parse(payloadStr);
+                payload.lineId = profile.userId; 
+                
+                const res = await apiCall('register', payload);
+                
+                // ถ้ายิง API เสร็จ (ไม่ว่าจะ error หรือ success จากฐานข้อมูล) ให้เคลียร์ cache ออก
+                localStorage.removeItem('ns_pending_reg'); 
+                hideLoading();
+                
+                if(res.status === 'success') {
+                    showAlert('ลงทะเบียนสำเร็จ!', 'ระบบบันทึกข้อมูลและเชื่อมต่อ LINE เรียบร้อย กรุณาเข้าสู่ระบบด้วยชื่อผู้ใช้ ' + payload.username, 'success');
+                    document.getElementById('login-username').value = payload.username;
+                    switchView('view-login');
+                    currentRegStep = 1; updateRegProgress();
+                    document.querySelectorAll('#view-register input').forEach(i => i.value = '');
+                    document.getElementById('reg-step-3').classList.add('hidden-view');
+                    document.getElementById('reg-step-1').classList.remove('hidden-view');
+                    liff.logout();
+                } else {
+                    showAlert('เซิร์ฟเวอร์ปฏิเสธการบันทึก', res.message || 'ไม่สามารถบันทึกข้อมูลลงในฐานข้อมูลได้ (อาจมีข้อมูลซ้ำ)', 'error');
+                }
+            } catch(e) {
+                hideLoading();
+                // กรณีเน็ตหลุดหรือ Timeout จะไม่ทำการลบแคช (localStorage) ออก 
+                // เพื่อให้ผู้ปกครองสามารถกดปุ่ม "เชื่อมต่อ" ซ้ำได้เลยโดยไม่ต้องกรอกฟอร์มใหม่
+                console.error('Registration/LIFF Error:', e);
+                let errMsg = e.message === 'TIMEOUT' ? 'หมดเวลาเชื่อมต่อฐานข้อมูล (เน็ตเวิร์คมีปัญหา)' : 
+                             e.message === 'DEPLOY_ERROR' ? 'พบปัญหาการเข้าถึงสคริปต์ปลายทาง' : e.message;
+                showAlert('การเชื่อมต่อขัดข้อง', 'ไม่สามารถลงทะเบียนได้: ' + errMsg + '\n\nข้อมูลของคุณยังคงอยู่ กรุณากดปุ่ม "เชื่อมต่อบัญชีเสร็จสิ้น" อีกครั้ง', 'error');
+            }
+        }
+
         function startLineLoginAndRegister() {
-            const prefix = document.getElementById('reg-prefix').value;
+            // เช็คข้อมูลขั้นต้นก่อนปล่อยให้ไปต่อ ป้องกันการหลุดจาก Step อื่น
             const fname = document.getElementById('reg-firstname').value.trim();
+            const sid = document.getElementById('reg-stu-id').value;
+            if(!fname || !sid) {
+                showAlert('ข้อมูลไม่ครบ', 'กรุณาย้อนกลับไปตรวจสอบข้อมูลในขั้นตอนที่ 1 ให้ครบถ้วน', 'error');
+                return;
+            }
+
+            const prefix = document.getElementById('reg-prefix').value;
             const lname = document.getElementById('reg-lastname').value.trim();
             const grade = document.getElementById('reg-grade').value.trim();
             const room = document.getElementById('reg-room').value.trim();
 
             const payload = {
-                studentId: document.getElementById('reg-stu-id').value,
+                studentId: sid,
                 parentName: prefix + fname + " " + lname,
                 studentName: document.getElementById('reg-stu-name').value,
                 gradeRoom: grade + "/" + room,
@@ -1017,11 +1025,10 @@
                 relation: document.getElementById('reg-relation').value 
             };
 
-            // เปลี่ยนไปใช้ localStorage แทน sessionStorage เพื่อให้ข้อมูลคงอยู่แม้เบราว์เซอร์จะ Redirect กลับมาจาก LINE OAuth
-            localStorage.setItem('ns_pending_reg', JSON.stringify(payload));
+            const payloadStr = JSON.stringify(payload);
+            localStorage.setItem('ns_pending_reg', payloadStr);
 
-            // แสดง Pop-up แจ้งเตือน และข้อความห้ามปิดหน้า
-            document.getElementById('loading-text').innerText = "กำลังลงทะเบียนกรุณารอสักครู่...";
+            document.getElementById('loading-text').innerText = "กำลังเตรียมการเชื่อมต่อ...";
             document.getElementById('loading-warning').classList.remove('hidden-view'); 
             showLoading();
 
@@ -1029,9 +1036,10 @@
                 if (!liff.isLoggedIn()) {
                     liff.login({ redirectUri: window.location.href });
                 } else {
-                    window.location.reload(); 
+                    // หากล็อกอินอยู่แล้ว เรียกฟังก์ชันบันทึกข้อมูลทันทีโดยไม่ต้องรีโหลดหน้าจอ
+                    processRegistration(payloadStr); 
                 }
-            }, 1000); 
+            }, 500); 
         }
 
         let currentLineLinkToOpen = "";
@@ -1083,7 +1091,8 @@
         function hideLoading() { 
             document.getElementById('loading-overlay').classList.add('hidden-view'); 
             document.getElementById('loading-text').innerText = "กำลังประมวลผล...";
-            document.getElementById('loading-warning').classList.add('hidden-view');
+            const warningEl = document.getElementById('loading-warning');
+            if (warningEl) warningEl.classList.add('hidden-view');
         }
         
         function showAlert(title, message, type='info') {
