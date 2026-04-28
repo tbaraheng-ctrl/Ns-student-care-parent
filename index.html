@@ -252,6 +252,7 @@
                     <p class="text-sm text-gray-600 mb-6">เพื่อให้ระบบสามารถส่งข้อความแจ้งเตือนถึงคุณได้ กรุณาเพิ่มเพื่อนและเชื่อมต่อบัญชี</p>
                     
                     <div class="space-y-3">
+                        <!-- ปุ่มใหม่: ดึงลิงก์จากตั้งค่าระบบมาเปิดเพื่อเพิ่มเพื่อน -->
                         <button type="button" onclick="addSchoolLineFriend()" class="bg-white text-[#00B900] border-2 border-[#00B900] px-6 py-3 rounded-xl font-bold hover:bg-green-50 w-full flex items-center justify-center gap-2 transition-all">
                             <i class="fas fa-user-plus text-xl"></i> 1. กดเพิ่มเพื่อนโรงเรียน
                         </button>
@@ -767,28 +768,6 @@
         </div>
     </div>
 
-    <!-- Modal: ป๊อปอัพเพิ่มเพื่อน LINE (เพิ่มใหม่) -->
-    <div id="line-add-modal" class="fixed inset-0 bg-black/60 z-[90] hidden-view flex justify-center items-center p-4 backdrop-blur-sm transition-opacity">
-        <div class="bg-white rounded-3xl w-full max-w-sm p-6 text-center transform transition-all shadow-2xl relative">
-            <button onclick="closeLineAddModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 transition">
-                <i class="fas fa-times text-xl"></i>
-            </button>
-            <div class="w-16 h-16 bg-[#00B900] rounded-full mx-auto flex items-center justify-center text-white text-3xl mb-4 shadow-lg shadow-green-200">
-                <i class="fab fa-line"></i>
-            </div>
-            <h3 class="text-xl font-bold mb-2 text-gray-800">เพิ่มเพื่อนเพื่อรับแจ้งเตือน</h3>
-            <p class="text-sm text-gray-600 mb-6">กรุณากดปุ่มด้านล่างเพื่อเข้าแอป LINE<br>และเพิ่มบัญชีโรงเรียนเป็นเพื่อน</p>
-
-            <button id="btn-open-line-app" onclick="openLineAppAndCloseModal()" class="block w-full bg-white text-[#00B900] border-2 border-[#00B900] px-4 py-3 rounded-xl font-bold hover:bg-green-50 transition-all mb-3 text-center">
-                <i class="fas fa-external-link-alt"></i> เปิดแอป LINE เพื่อเพิ่มเพื่อน
-            </button>
-
-            <button onclick="closeLineAddModal()" class="w-full bg-gray-100 text-gray-500 px-4 py-3 rounded-xl font-bold hover:bg-gray-200 transition-all">
-                ยกเลิก / ปิดหน้าต่าง
-            </button>
-        </div>
-    </div>
-
     <!-- ========================================== -->
     <!-- JAVASCRIPT LOGIC -->
     <!-- ========================================== -->
@@ -962,15 +941,15 @@
                         try {
                             const profile = await liff.getProfile();
                             const payload = JSON.parse(pendingReg);
-                            payload.lineId = profile.userId; // แก้ไข Key ให้ตรงกับ API หลังบ้าน
+                            payload.E = profile.userId; 
                             
                             const res = await apiCall('register', payload);
                             sessionStorage.removeItem('ns_pending_reg'); 
                             hideLoading();
                             
                             if(res.status === 'success') {
-                                showAlert('ลงทะเบียนสำเร็จ!', 'ระบบเชื่อมต่อ LINE เรียบร้อย กรุณาเข้าสู่ระบบด้วยชื่อผู้ใช้ ' + payload.username, 'success');
-                                document.getElementById('login-username').value = payload.username;
+                                showAlert('ลงทะเบียนสำเร็จ!', 'ระบบเชื่อมต่อ LINE เรียบร้อย กรุณาเข้าสู่ระบบด้วยชื่อผู้ใช้ ' + payload.G, 'success');
+                                document.getElementById('login-username').value = payload.G;
                                 switchView('view-login');
                                 currentRegStep = 1; updateRegProgress();
                                 document.querySelectorAll('#view-register input').forEach(i => i.value = '');
@@ -982,8 +961,7 @@
                             }
                         } catch(e) {
                             hideLoading();
-                            console.error("Register Error:", e);
-                            showAlert('ข้อผิดพลาด', 'เกิดข้อผิดพลาดในการบันทึกข้อมูลลงฐานข้อมูล (' + e.message + ')', 'error');
+                            showAlert('ข้อผิดพลาด', 'ดึงข้อมูล LINE Profile ไม่สำเร็จ กรุณาลองใหม่', 'error');
                         }
                     }
                 }
@@ -999,60 +977,35 @@
             const grade = document.getElementById('reg-grade').value.trim();
             const room = document.getElementById('reg-room').value.trim();
 
-            // แก้ไขชุดข้อมูลที่ส่งไป ให้ตรงกับที่ Backend (doRegister) ต้องการเป๊ะๆ เพื่อไม่ให้เกิด Error
             const payload = {
-                studentId: document.getElementById('reg-stu-id').value,
-                parentName: prefix + fname + " " + lname,
-                studentName: document.getElementById('reg-stu-name').value,
-                gradeRoom: grade + "/" + room,
-                lineId: "", 
-                password: document.getElementById('reg-pass1').value,
-                username: document.getElementById('reg-username').value,
-                relation: document.getElementById('reg-relation').value 
+                A: document.getElementById('reg-stu-id').value,
+                B: prefix + fname + " " + lname,
+                C: document.getElementById('reg-stu-name').value,
+                D: grade + "/" + room,
+                E: "", 
+                F: document.getElementById('reg-pass1').value,
+                G: document.getElementById('reg-username').value,
+                H: document.getElementById('reg-relation').value 
             };
 
             sessionStorage.setItem('ns_pending_reg', JSON.stringify(payload));
 
-            // แสดง Pop-up กำลังเชื่อมต่อเข้าสู่ระบบ LINE
-            document.getElementById('loading-text').innerText = "กำลังเชื่อมต่อเข้าสู่ระบบ LINE...";
-            showLoading();
-
-            setTimeout(() => {
-                if (!liff.isLoggedIn()) {
-                    liff.login({ redirectUri: window.location.href });
-                } else {
-                    window.location.reload(); 
-                }
-            }, 800);
+            if (!liff.isLoggedIn()) {
+                liff.login({ redirectUri: window.location.href });
+            } else {
+                window.location.reload(); 
+            }
         }
 
-        let currentLineLinkToOpen = "";
-
-        // เพิ่มฟังก์ชันสำหรับเปิดหน้าต่างป๊อปอัพเพิ่มเพื่อน
+        // เพิ่มฟังก์ชันสำหรับเปิดลิงก์เพิ่มเพื่อน
         function addSchoolLineFriend() {
-            currentLineLinkToOpen = (systemSettings && systemSettings.lineLink) ? systemSettings.lineLink : "https://line.me/R/ti/p/@your_line_id";
-            if(currentLineLinkToOpen && currentLineLinkToOpen !== "") {
-                document.getElementById('line-add-modal').classList.remove('hidden-view');
+            // ดึงลิงก์จากที่แอดมินตั้งค่าไว้ หรือใช้ค่าเริ่มต้นถ้าไม่ได้ตั้ง
+            const lineLink = (systemSettings && systemSettings.lineLink) ? systemSettings.lineLink : "https://line.me/R/ti/p/@your_line_id";
+            if(lineLink && lineLink !== "") {
+                window.open(lineLink, '_blank');
             } else {
                 showAlert('แจ้งเตือน', 'แอดมินยังไม่ได้ตั้งค่าลิงก์สำหรับเพิ่มเพื่อนในระบบ', 'info');
             }
-        }
-
-        function closeLineAddModal() {
-            document.getElementById('line-add-modal').classList.add('hidden-view');
-        }
-
-        // ซ่อนหน้าต่างอัตโนมัติ เมื่อกดไปเพิ่มเพื่อน
-        function openLineAppAndCloseModal() {
-            if (liff.isInClient()) {
-                liff.openWindow({ url: currentLineLinkToOpen, external: false });
-            } else {
-                window.location.href = currentLineLinkToOpen; 
-            }
-            
-            setTimeout(() => {
-                closeLineAddModal();
-            }, 1000);
         }
 
         function showLoading() { document.getElementById('loading-overlay').classList.remove('hidden-view'); }
