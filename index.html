@@ -934,22 +934,24 @@
             try {
                 await liff.init({ liffId: LIFF_ID });
                 if (liff.isLoggedIn()) {
-                    const pendingReg = sessionStorage.getItem('ns_pending_reg');
+                    // เปลี่ยนจาก sessionStorage เป็น localStorage ป้องกันข้อมูลหายเวลาสลับแอป
+                    const pendingReg = localStorage.getItem('ns_pending_reg');
                     if (pendingReg) {
-                        document.getElementById('loading-text').innerText = "กำลังผูกบัญชี LINE และบันทึกข้อมูล...";
+                        document.getElementById('loading-text').innerText = "กำลังลงทะเบียนกรุณารอสักครู่...";
+                        document.getElementById('loading-warning').classList.remove('hidden-view');
                         showLoading();
                         try {
                             const profile = await liff.getProfile();
                             const payload = JSON.parse(pendingReg);
-                            payload.E = profile.userId; 
+                            payload.lineId = profile.userId; 
                             
                             const res = await apiCall('register', payload);
-                            sessionStorage.removeItem('ns_pending_reg'); 
+                            localStorage.removeItem('ns_pending_reg'); 
                             hideLoading();
                             
                             if(res.status === 'success') {
-                                showAlert('ลงทะเบียนสำเร็จ!', 'ระบบเชื่อมต่อ LINE เรียบร้อย กรุณาเข้าสู่ระบบด้วยชื่อผู้ใช้ ' + payload.G, 'success');
-                                document.getElementById('login-username').value = payload.G;
+                                showAlert('ลงทะเบียนสำเร็จ!', 'ระบบเชื่อมต่อ LINE เรียบร้อย กรุณาเข้าสู่ระบบด้วยชื่อผู้ใช้ ' + payload.username, 'success');
+                                document.getElementById('login-username').value = payload.username;
                                 switchView('view-login');
                                 currentRegStep = 1; updateRegProgress();
                                 document.querySelectorAll('#view-register input').forEach(i => i.value = '');
@@ -978,36 +980,34 @@
             const room = document.getElementById('reg-room').value.trim();
 
             const payload = {
-                A: document.getElementById('reg-stu-id').value,
-                B: prefix + fname + " " + lname,
-                C: document.getElementById('reg-stu-name').value,
-                D: grade + "/" + room,
-                E: "", 
-                F: document.getElementById('reg-pass1').value,
-                G: document.getElementById('reg-username').value,
-                H: document.getElementById('reg-relation').value 
+                studentId: document.getElementById('reg-stu-id').value,
+                parentName: prefix + fname + " " + lname,
+                studentName: document.getElementById('reg-stu-name').value,
+                gradeRoom: grade + "/" + room,
+                lineId: "", 
+                password: document.getElementById('reg-pass1').value,
+                username: document.getElementById('reg-username').value,
+                relation: document.getElementById('reg-relation').value 
             };
 
-            sessionStorage.setItem('ns_pending_reg', JSON.stringify(payload));
+            // เปลี่ยนไปใช้ localStorage แทน sessionStorage เพื่อให้ข้อมูลคงอยู่แม้เบราว์เซอร์จะ Redirect กลับมาจาก LINE OAuth
+            localStorage.setItem('ns_pending_reg', JSON.stringify(payload));
 
-            if (!liff.isLoggedIn()) {
-                liff.login({ redirectUri: window.location.href });
-            } else {
-                window.location.reload(); 
-            }
+            // แสดง Pop-up แจ้งเตือน และข้อความห้ามปิดหน้า
+            document.getElementById('loading-text').innerText = "กำลังลงทะเบียนกรุณารอสักครู่...";
+            document.getElementById('loading-warning').classList.remove('hidden-view'); 
+            showLoading();
+
+            setTimeout(() => {
+                if (!liff.isLoggedIn()) {
+                    liff.login({ redirectUri: window.location.href });
+                } else {
+                    window.location.reload(); 
+                }
+            }, 1000); 
         }
 
-        // เพิ่มฟังก์ชันสำหรับเปิดลิงก์เพิ่มเพื่อน
-        function addSchoolLineFriend() {
-            // ดึงลิงก์จากที่แอดมินตั้งค่าไว้ หรือใช้ค่าเริ่มต้นถ้าไม่ได้ตั้ง
-            const lineLink = (systemSettings && systemSettings.lineLink) ? systemSettings.lineLink : "https://line.me/R/ti/p/@your_line_id";
-            if(lineLink && lineLink !== "") {
-                window.open(lineLink, '_blank');
-            } else {
-                showAlert('แจ้งเตือน', 'แอดมินยังไม่ได้ตั้งค่าลิงก์สำหรับเพิ่มเพื่อนในระบบ', 'info');
-            }
-        }
-
+        let currentLineLinkToOpen = "";
         function showLoading() { document.getElementById('loading-overlay').classList.remove('hidden-view'); }
         function hideLoading() { 
             document.getElementById('loading-overlay').classList.add('hidden-view'); 
