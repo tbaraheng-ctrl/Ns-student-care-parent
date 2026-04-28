@@ -185,6 +185,9 @@
                         <select id="reg-room" onchange="fetchClassStudents()" class="w-full p-2 border rounded-lg bg-white outline-none focus:border-ns-blue">
                             <option value="">เลือกห้อง</option>
                             <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                            <option value="4">4</option><option value="5">5</option><option value="6">6</option>
+                            <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+                            <option value="10">10</option>
                         </select>
                     </div>
                 </div>
@@ -774,6 +777,7 @@
         let clubInterval = null; 
         let systemSettings = {}; 
         let studentCurrentClub = null; 
+        let alertCallback = null; // เพิ่มตัวแปรสำหรับรับ Callback เพื่อทำงานต่อหลังจากกดตกลง
 
         document.addEventListener("DOMContentLoaded", async () => {
             const savedUser = localStorage.getItem('ns_username');
@@ -993,15 +997,23 @@
             document.getElementById('loading-text').innerText = "กำลังประมวลผล...";
         }
         
-        function showAlert(title, message, type='info') {
+        function showAlert(title, message, type='info', callback=null) {
             document.getElementById('alert-title').innerText = title;
             document.getElementById('alert-message').innerText = message;
             const icon = document.getElementById('alert-icon');
             icon.className = 'text-5xl mb-4 ' + (type === 'success' ? 'text-green-500' : type === 'error' ? 'text-red-500' : 'text-ns-blue');
             icon.innerHTML = type === 'success' ? '<i class="fas fa-check-circle"></i>' : type === 'error' ? '<i class="fas fa-times-circle"></i>' : '<i class="fas fa-info-circle"></i>';
+            alertCallback = callback;
             document.getElementById('alert-modal').classList.remove('hidden-view');
         }
-        function closeAlert() { document.getElementById('alert-modal').classList.add('hidden-view'); }
+        
+        function closeAlert() { 
+            document.getElementById('alert-modal').classList.add('hidden-view'); 
+            if(typeof alertCallback === 'function') {
+                alertCallback();
+                alertCallback = null;
+            }
+        }
 
         function switchView(viewId) {
             ['view-login', 'view-register', 'app-layout'].forEach(id => {
