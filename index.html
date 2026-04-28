@@ -253,11 +253,11 @@
                     
                     <div class="space-y-3">
                         <!-- ปุ่มใหม่: ดึงลิงก์จากตั้งค่าระบบมาเปิดเพื่อเพิ่มเพื่อน -->
-                        <button type="button" onclick="addSchoolLineFriend()" class="bg-white text-[#00B900] border-2 border-[#00B900] px-6 py-3 rounded-xl font-bold hover:bg-green-50 w-full flex items-center justify-center gap-2 transition-all">
+                        <button type="button" id="btn-add-friend" onclick="addSchoolLineFriend()" class="bg-white text-[#00B900] border-2 border-[#00B900] px-6 py-3 rounded-xl font-bold hover:bg-green-50 w-full flex items-center justify-center gap-2 transition-all">
                             <i class="fas fa-user-plus text-xl"></i> 1. กดเพิ่มเพื่อนโรงเรียน
                         </button>
                         
-                        <button type="button" onclick="startLineLoginAndRegister()" class="bg-[#00B900] text-white px-6 py-4 rounded-xl font-bold shadow-md hover:bg-green-600 w-full flex items-center justify-center gap-2 active:scale-95 transition-all">
+                        <button type="button" id="btn-connect-line" onclick="startLineLoginAndRegister()" class="bg-gray-300 text-gray-500 cursor-not-allowed px-6 py-4 rounded-xl font-bold shadow-sm w-full flex items-center justify-center gap-2 transition-all" disabled>
                             <i class="fas fa-link text-xl"></i> 2. เชื่อมต่อบัญชีเสร็จสิ้น
                         </button>
                     </div>
@@ -784,6 +784,7 @@
         let clubInterval = null; 
         let systemSettings = {}; 
         let studentCurrentClub = null; 
+        let hasClickedAddFriend = false; // ตัวแปรสำหรับตรวจสอบการกดเพิ่มเพื่อน
 
         document.addEventListener("DOMContentLoaded", async () => {
             const savedUser = localStorage.getItem('ns_username');
