@@ -411,8 +411,10 @@
                                 <span id="ms-status-badge" class="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-600 shadow-sm">กำลังประมวลผล</span>
                             </div>
                             <p class="text-[11px] text-gray-500 mb-2">ประเมินความเสี่ยงจากสถิติ "ขาดเรียน" และ "หนีเรียน" รวมกัน</p>
-                            <div class="w-full bg-gray-100 rounded-full h-2.5 mt-1 overflow-hidden shadow-inner">
-                                <div id="ms-progress-bar" class="h-2.5 rounded-full transition-all duration-700 bg-gray-400" style="width: 0%"></div>
+                            <!-- เปลี่ยนเส้นกราฟให้สามารถแสดง 2 สีต่อกันได้ (สีทองสำหรับวิชาที่แก้ตัวแล้ว / สีแดงสำหรับวิชาที่ยังไม่แก้) -->
+                            <div class="w-full bg-gray-100 rounded-full h-2.5 mt-1 overflow-hidden shadow-inner flex">
+                                <div id="ms-progress-remediated" class="h-2.5 transition-all duration-700 bg-gradient-to-r from-yellow-400 to-yellow-500" style="width: 0%"></div>
+                                <div id="ms-progress-bar" class="h-2.5 transition-all duration-700 bg-gray-400" style="width: 0%"></div>
                             </div>
                             <div class="flex justify-between text-[10px] text-gray-400 mt-1.5 font-medium px-1">
                                 <span>ปลอดภัย</span>
@@ -548,11 +550,24 @@
 
                 <!-- VIEW: CLUB (ชุมนุม) -->
                 <div id="view-club" class="app-section hidden-view space-y-4">
-                    <div class="flex justify-between items-center border-l-4 border-purple-500 pl-2 mb-2">
-                        <h2 class="text-lg font-bold text-gray-800">ลงทะเบียนชุมนุม</h2>
-                        <button onclick="forceRefreshClubs()" class="flex items-center gap-1 text-[10px] sm:text-xs text-purple-600 bg-purple-50 hover:bg-purple-100 px-2 py-1 rounded-lg border border-purple-200 shadow-sm transition-all active:scale-95">
-                            <i class="fas fa-sync-alt" id="icon-refresh-clubs"></i> อัปเดตข้อมูล
+                    <div class="flex justify-between items-center mb-3 gap-2">
+                        <div class="flex items-center gap-3">
+                            <button onclick="navApp('dashboard')" class="flex items-center gap-2 bg-gray-800 text-white px-4 py-2.5 rounded-xl shadow-md hover:bg-gray-900 transition-all active:scale-95 shrink-0">
+                                <i class="fas fa-home text-sm"></i>
+                                <span class="text-xs font-bold">กลับไปหน้าหลัก</span>
+                            </button>
+                            <div class="border-l-4 border-purple-500 pl-2 hidden sm:block">
+                                <h2 class="text-lg font-bold text-gray-800">ลงทะเบียนชุมนุม</h2>
+                            </div>
+                        </div>
+                        <button onclick="forceRefreshClubs()" class="flex items-center gap-1.5 text-[10px] sm:text-xs text-purple-700 bg-purple-100 hover:bg-purple-200 px-3 py-2 rounded-xl border border-purple-200 shadow-sm transition-all active:scale-95 shrink-0">
+                            <i class="fas fa-sync-alt" id="icon-refresh-clubs"></i> <span class="hidden sm:inline font-medium">อัปเดตข้อมูล</span>
                         </button>
+                    </div>
+                    
+                    <!-- หัวข้อแสดงผลสำหรับหน้าจอมือถือโดยเฉพาะเพื่อไม่ให้เบียดกับปุ่ม -->
+                    <div class="border-l-4 border-purple-500 pl-2 sm:hidden mb-2">
+                        <h2 class="text-base font-bold text-gray-800">ลงทะเบียนชุมนุม</h2>
                     </div>
                     
                     <div id="club-list-body" class="grid grid-cols-1 gap-4 pb-4">
@@ -925,23 +940,23 @@
             preloadStatDetailsSilent(cleanId);
         }
 
-        // [ใหม่] ฟังก์ชันแอบดึงรายละเอียดทุกหมวดหมู่มาเก็บในเครื่องทันที
+        // [ใหม่] ฟังก์ชันแอบดึงรายละเอียดทุกหมวดหมู่มาเก็บในเครื่องทันทีแบบไม่หน่วงเวลา
         async function preloadStatDetailsSilent(cleanId) {
             if (isPreloadingDetails) return;
             isPreloadingDetails = true;
             
-            const types = ['scan', 'late_school', 'missed_class', 'late_class', 'skipped_class', 'leave', 'behavior'];
+            // จัดลำดับให้ดึงประวัติกลุ่มเรียนก่อน เพื่อให้เร็วที่สุดหากผู้ใช้กดดู
+            const types = ['missed_class', 'late_class', 'skipped_class', 'scan', 'late_school', 'leave', 'behavior'];
             
-            for (const type of types) {
-                try {
-                    const res = await apiCall('getStatDetails', { id: cleanId, type: type });
+            // ยิง Request พร้อมกันทั้งหมด (Parallel) เพื่อให้โหลดเสร็จ 100% ภายใน 1-2 วินาทีแรก
+            types.forEach(type => {
+                apiCall('getStatDetails', { id: cleanId, type: type }).then(res => {
                     if (res.status === 'success' && res.data) {
                         localStorage.setItem(`ns_stat_details_${cleanId}_${type}`, JSON.stringify(res.data));
                     }
-                    // หน่วงเวลาเล็กน้อยให้ Apps Script ได้พักหายใจ ป้องกัน Error
-                    await new Promise(r => setTimeout(r, 500)); 
-                } catch(e) { console.log(`Preload details ${type} skipped`); }
-            }
+                }).catch(e => console.log(`Preload details ${type} skipped`));
+            });
+            
             isPreloadingDetails = false;
         }
 
@@ -1298,12 +1313,10 @@
                     } else {
                         navApp('dashboard'); 
                         
-                        // [เพิ่มประสิทธิภาพ] สั่งโหลดข้อมูลรอแบบเงียบๆ
-                        setTimeout(() => {
-                            const perms = systemSettings?.permissions?.[res.role];
-                            if (perms && perms.club) fetchClubsSilent();
-                            preloadStatDetailsSilent(res.data.id);
-                        }, 2000);
+                        // [เพิ่มประสิทธิภาพ] สั่งโหลดข้อมูลรอแบบเงียบๆ ทันที 100% ไม่ต้องหน่วงเวลาแล้ว
+                        const perms = systemSettings?.permissions?.[res.role];
+                        if (perms && perms.club) preloadClubsSilent();
+                        preloadStatDetailsSilent(res.data.id);
                     }
                 } else {
                     showAlert('เข้าระบบไม่สำเร็จ', res.message || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง', 'error');
@@ -1560,46 +1573,95 @@
             document.getElementById('stat-leave-personal').innerText = data.leavePersonal;
             
             const totalAbsence = (Number(data.missedClass) || 0) + (Number(data.skippedClass) || 0);
+            
+            // คำนวณจำนวนวิชาที่ติดและแก้ตัวแล้วจาก msDetails
+            let remediatedAbsence = 0;
+            let remCount = 0;
+
+            if (data.msDetails && data.msDetails.length > 0) {
+                data.msDetails.forEach(subj => {
+                    if (subj.remediated) {
+                        remediatedAbsence += subj.count;
+                        remCount++;
+                    }
+                });
+            }
+            
+            // จำนวนครั้งที่ยังคงทำงานอยู่ (ยอดที่ยังไม่แก้) - จะเป็นตัวกำหนดความยาวของเส้นกราฟ
+            const activeAbsence = Math.max(0, totalAbsence - remediatedAbsence);
+
             const msBadge = document.getElementById('ms-status-badge');
             const msBar = document.getElementById('ms-progress-bar');
+            const msBarRemediated = document.getElementById('ms-progress-remediated');
             const msIcon = document.getElementById('ms-icon');
             const msDetailsContainer = document.getElementById('ms-details-container');
             const msDetailsList = document.getElementById('ms-details-list');
             
             if (msBadge && msBar && msIcon) {
-                let progressPercent = Math.min(100, (totalAbsence / 10) * 100); 
-                msBar.style.width = progressPercent + '%';
+                // คำนวณความกว้างจาก "ยอดที่ยังไม่ได้แก้" เท่านั้น เพื่อให้กราฟหดตัวลง
+                let activeProgressPercent = Math.min(100, (activeAbsence / 10) * 100); 
+                
+                // ปิดการแสดงผลของกราฟสีทองแบบต่อกัน (ให้ความกว้างเป็น 0)
+                if (msBarRemediated) msBarRemediated.style.width = '0%';
+                
+                // ให้เส้นกราฟหดตัวลงไปอยู่จุดปลอดภัย
+                msBar.style.width = activeProgressPercent + '%';
 
-                if (totalAbsence >= 8) {
+                if (activeAbsence >= 8) {
                     msBadge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-600 shadow-sm';
-                    msBadge.innerText = 'แนวโน้มติด ม.ส.';
-                    msBar.className = 'h-2.5 rounded-full transition-all duration-700 bg-gradient-to-r from-red-500 to-red-600';
+                    msBadge.innerText = remCount > 0 ? 'แนวโน้มติด ม.ส. (แก้บางส่วน)' : 'แนวโน้มติด ม.ส.';
+                    msBar.className = 'h-2.5 transition-all duration-700 bg-gradient-to-r from-red-500 to-red-600';
                     msIcon.className = 'fas fa-exclamation-triangle text-xl text-red-500 animate-pulse';
-                } else if (totalAbsence >= 4) {
+                } else if (activeAbsence >= 4) {
                     msBadge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-orange-100 text-ns-orange shadow-sm';
-                    msBadge.innerText = 'มีความเสี่ยง';
-                    msBar.className = 'h-2.5 rounded-full transition-all duration-700 bg-gradient-to-r from-orange-400 to-ns-orange';
+                    msBadge.innerText = remCount > 0 ? 'มีความเสี่ยง (แก้บางส่วน)' : 'มีความเสี่ยง';
+                    msBar.className = 'h-2.5 transition-all duration-700 bg-gradient-to-r from-orange-400 to-ns-orange';
                     msIcon.className = 'fas fa-exclamation-circle text-xl text-ns-orange';
                 } else {
-                    msBadge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-600 shadow-sm';
-                    msBadge.innerText = 'ปลอดภัย';
-                    msBar.className = 'h-2.5 rounded-full transition-all duration-700 bg-gradient-to-r from-green-400 to-green-500';
-                    msIcon.className = 'fas fa-shield-alt text-xl text-green-500';
+                    // ปลอดภัย (ต่ำกว่า 4 ครั้ง หรือ แก้จนยอดลดลงมาต่ำกว่า 4 แล้ว)
+                    if (remCount > 0) {
+                        // ถ้าปลอดภัยเพราะแก้ตัวมาแล้ว ให้เป็นสีเหลืองทอง
+                        msBadge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-600 shadow-sm border border-yellow-200';
+                        msBadge.innerText = 'ปลอดภัย (แก้ตัวแล้ว)';
+                        msBar.className = 'h-2.5 transition-all duration-700 bg-gradient-to-r from-yellow-400 to-yellow-500';
+                        msIcon.className = 'fas fa-shield-alt text-xl text-yellow-500';
+                    } else {
+                        // ปลอดภัยปกติ
+                        msBadge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-600 shadow-sm';
+                        msBadge.innerText = 'ปลอดภัย';
+                        msBar.className = 'h-2.5 transition-all duration-700 bg-gradient-to-r from-green-400 to-green-500';
+                        msIcon.className = 'fas fa-shield-alt text-xl text-green-500';
+                    }
                 }
 
                 if (totalAbsence >= 4 && data.msDetails && data.msDetails.length > 0) {
                     msDetailsContainer.classList.remove('hidden-view');
                     let listHtml = '';
                     data.msDetails.forEach(subj => {
+                        // ตรวจสอบสถานะการแก้ตัวเพื่อสลับคลาส CSS (ปรับเป็นสีเขียวทั้งหมด)
+                        const isRemediated = subj.remediated === true;
+                        const borderClass = isRemediated ? 'border-green-300' : 'border-red-100';
+                        const bgClass = isRemediated ? 'bg-green-50/70' : 'bg-white';
+                        const nameColor = isRemediated ? 'text-green-700' : 'text-gray-800';
+                        const countColor = isRemediated ? 'text-green-700' : 'text-red-600';
+                        const countLabelColor = isRemediated ? 'text-green-600' : 'text-red-500';
+                        const countBg = isRemediated ? 'bg-green-100 border-green-200' : 'bg-red-50 border-red-200';
+                        
+                        // ป้ายกำกับ (Badge) ดำเนินแก้ตัวแล้ว (สีเขียว)
+                        const badgeHtml = isRemediated 
+                            ? `<div class="mt-1.5"><span class="text-[9px] font-bold bg-green-500 text-white px-2 py-0.5 rounded-full shadow-sm"><i class="fas fa-check-circle mr-1"></i>ดำเนินแก้ตัวแล้ว</span></div>` 
+                            : '';
+
                         listHtml += `
-                        <div class="flex justify-between items-center bg-white p-2.5 rounded-xl border border-red-100 shadow-sm">
+                        <div class="flex justify-between items-center ${bgClass} p-2.5 rounded-xl border ${borderClass} shadow-sm transition-all mb-2">
                             <div class="flex-1 pr-2">
-                                <p class="text-xs font-bold text-gray-800 leading-tight">${subj.code} ${subj.name}</p>
+                                <p class="text-xs font-bold ${nameColor} leading-tight">${subj.code} ${subj.name}</p>
                                 <p class="text-[10px] text-gray-500 mt-0.5"><i class="fas fa-chalkboard-teacher text-gray-400 mr-1"></i>ครู${subj.teacher.replace(/^(นาย|นางสาว|นาง|ว่าที่ร\.ต\.|ว่าที่ร้อยตรี|ครู)/, '')}</p>
+                                ${badgeHtml}
                             </div>
-                            <div class="text-center bg-red-50 px-3 py-1.5 rounded-lg border border-red-200 shrink-0">
-                                <span class="text-sm font-bold text-red-600">${subj.count}</span>
-                                <span class="text-[9px] text-red-500 block -mt-1">ครั้ง</span>
+                            <div class="text-center ${countBg} px-3 py-1.5 rounded-lg border shrink-0">
+                                <span class="text-sm font-bold ${countColor}">${subj.count}</span>
+                                <span class="text-[9px] ${countLabelColor} block -mt-1">ครั้ง</span>
                             </div>
                         </div>`;
                     });
@@ -1738,7 +1800,11 @@
                 apiCall('getStatDetails', { id: cleanId, type: type }).then(res => {
                     if (res.status === 'success' && res.data) {
                         localStorage.setItem(cacheKey, JSON.stringify(res.data));
-                        renderDetailModalUI(res.data);
+                        // อัปเดต UI อีกครั้งหากเปิดหน้าเดิมอยู่
+                        if (!document.getElementById('detail-modal').classList.contains('hidden-view') && 
+                            document.getElementById('modal-title').innerText === titleMap[type]) {
+                            renderDetailModalUI(res.data);
+                        }
                     }
                 }).catch(e => {});
             } else {
@@ -1757,22 +1823,31 @@
             }
         }
 
-        // แยกฟังก์ชันการวาดหน้าต่างประวัติออกมา เพื่อให้เรียกใช้ได้ง่ายๆ
+        // ออกแบบกล่องประวัติใหม่ เพื่อแยกการแสดงผลวันที่ และ คาบที่ ให้เด่นชัดเจน
         function renderDetailModalUI(data) {
             if (data && data.length > 0) {
                 let html = '';
                 data.forEach((item, index) => {
-                    html += `<div class="p-3 bg-gray-50 rounded-xl border border-gray-100 mb-2 text-sm">
-                        <div class="flex justify-between font-semibold text-gray-700 mb-1">
-                            <span><i class="far fa-calendar-alt mr-1"></i> ${item.date}</span>
-                            <span class="${item.status.includes('-') || item.status.includes('ขาด') || item.status.includes('หนี') || item.status.includes('สาย') ? 'text-red-500' : 'text-ns-blue'}">${item.status}</span>
+                    // กำหนดสีและแถบสัญลักษณ์ตามความรุนแรง
+                    const isAlert = item.status.includes('ขาด') || item.status.includes('หนี') || item.status.includes('สาย') || item.status.includes('-');
+                    const colorClass = isAlert ? 'text-red-500' : 'text-ns-blue';
+                    const bgClass = isAlert ? 'bg-red-50' : 'bg-blue-50';
+                    const borderLeft = isAlert ? 'bg-red-400' : 'bg-ns-blue';
+
+                    html += `<div class="p-3 bg-white rounded-xl border border-gray-100 mb-3 text-sm shadow-sm relative overflow-hidden transition-all hover:shadow-md">
+                        <div class="absolute left-0 top-0 bottom-0 w-1 ${borderLeft}"></div>
+                        
+                        <div class="pl-2 flex justify-between items-center font-semibold text-gray-700 mb-2 border-b border-gray-50 pb-1.5">
+                            <span class="${colorClass} flex items-center gap-1.5"><i class="far fa-calendar-alt"></i> ${item.date}</span>
+                            <span class="${colorClass} ${bgClass} px-2 py-0.5 rounded-md text-xs border ${isAlert ? 'border-red-100' : 'border-blue-100'}">${item.status}</span>
                         </div>
-                        <p class="text-gray-500">${item.detail}</p>
+                        
+                        <p class="pl-2 text-gray-600 text-xs sm:text-sm leading-relaxed">${item.detail}</p>
                     </div>`;
                 });
                 document.getElementById('modal-content').innerHTML = html;
             } else {
-                document.getElementById('modal-content').innerHTML = '<div class="text-center py-8 text-gray-500"><i class="fas fa-folder-open text-4xl mb-3 text-gray-300"></i><p>ไม่พบประวัติข้อมูล</p></div>';
+                document.getElementById('modal-content').innerHTML = '<div class="text-center py-8 text-gray-500"><i class="fas fa-folder-open text-4xl mb-3 text-gray-200"></i><p>ไม่พบประวัติข้อมูล</p></div>';
             }
         }
 
